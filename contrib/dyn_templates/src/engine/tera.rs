@@ -48,8 +48,7 @@ impl Engine for Tera {
         match Tera::render(self, name, &tera_ctx) {
             Ok(string) => Some(string),
             Err(e) => {
-                error_!("Error rendering Tera template '{}'.", name);
-
+                error_!("Error rendering Tera template '{name}': {e}");
                 let mut error = Some(&e as &dyn Error);
                 while let Some(err) = error {
                     error_!("{}", err);
