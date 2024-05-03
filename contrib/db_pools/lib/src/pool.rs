@@ -269,7 +269,7 @@ mod deadpool_old {
 mod sqlx {
     use sqlx::ConnectOptions;
     use super::{Duration, Error, Config, Figment};
-    use rocket::config::LogLevel;
+    // use rocket::config::LogLevel;
 
     type Options<D> = <<D as sqlx::Database>::Connection as sqlx::Connection>::Options;
 
@@ -301,12 +301,12 @@ mod sqlx {
             specialize(&mut opts, &config);
 
             opts = opts.disable_statement_logging();
-            if let Ok(level) = figment.extract_inner::<LogLevel>(rocket::Config::LOG_LEVEL) {
-                if !matches!(level, LogLevel::Normal | LogLevel::Off) {
-                    opts = opts.log_statements(level.into())
-                        .log_slow_statements(level.into(), Duration::default());
-                }
-            }
+            // if let Ok(level) = figment.extract_inner::<LogLevel>(rocket::Config::LOG_LEVEL) {
+            //     if !matches!(level, LogLevel::Normal | LogLevel::Off) {
+            //         opts = opts.log_statements(level.into())
+            //             .log_slow_statements(level.into(), Duration::default());
+            //     }
+            // }
 
             sqlx::pool::PoolOptions::new()
                 .max_connections(config.max_connections as u32)

@@ -136,6 +136,7 @@ function test_core() {
     json
     msgpack
     uuid
+    trace
   )
 
   echo ":: Building and checking core [no features]..."

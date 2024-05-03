@@ -19,7 +19,7 @@ pub fn spawn_inspect<E, F, Fut>(or: F, future: Fut)
     tokio::spawn(future.inspect_err(or));
 }
 
-use std::io;
+use std::{fmt, io};
 use std::pin::pin;
 use std::future::Future;
 use either::Either;
@@ -45,6 +45,20 @@ pub trait FutureExt: Future + Sized {
 }
 
 impl<F: Future + Sized> FutureExt for F { }
+
+pub struct Formatter<F: Fn(&mut fmt::Formatter<'_>) -> fmt::Result>(pub F);
+
+impl<F: Fn(&mut fmt::Formatter<'_>) -> fmt::Result> fmt::Debug for Formatter<F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (self.0)(f)
+    }
+}
+
+impl<F: Fn(&mut fmt::Formatter<'_>) -> fmt::Result> fmt::Display for Formatter<F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (self.0)(f)
+    }
+}
 
 #[doc(hidden)]
 #[macro_export]

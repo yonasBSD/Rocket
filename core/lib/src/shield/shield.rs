@@ -1,12 +1,9 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use yansi::Paint;
-
 use crate::{Rocket, Request, Response, Orbit, Config};
 use crate::fairing::{Fairing, Info, Kind};
 use crate::http::{Header, uncased::UncasedStr};
-use crate::log::PaintExt;
 use crate::shield::*;
 
 /// A [`Fairing`] that injects browser security and privacy headers into all
@@ -187,27 +184,23 @@ impl Fairing for Shield {
     }
 
     async fn on_liftoff(&self, rocket: &Rocket<Orbit>) {
+        if self.policies.is_empty() {
+            return;
+        }
+
         let force_hsts = rocket.endpoints().all(|v| v.is_tls())
             && rocket.figment().profile() != Config::DEBUG_PROFILE
             && !self.is_enabled::<Hsts>();
 
-        if force_hsts {
-            self.force_hsts.store(true, Ordering::Release);
-        }
-
-        if !self.policies.is_empty() {
-            info!("{}{}:", "🛡️ ".emoji(), "Shield".magenta());
-
+        tracing::info_span!("shield", force_hsts).in_scope(|| {
             for header in self.policies.values() {
-                info_!("{}: {}", header.name(), header.value().primary());
+                info!(name: "header", name = header.name().as_str(), value = header.value());
             }
 
-            if force_hsts {
-                warn_!("Detected TLS-enabled liftoff without enabling HSTS.");
-                warn_!("Shield has enabled a default HSTS policy.");
-                info_!("To remove this warning, configure an HSTS policy.");
-            }
-        }
+            warn!("Detected TLS-enabled liftoff without enabling HSTS.");
+            warn!("Shield has enabled a default HSTS policy.");
+            info!("To remove this warning, configure an HSTS policy.");
+        });
     }
 
     async fn on_response<'r>(&self, _: &'r Request<'_>, response: &mut Response<'r>) {

@@ -1,7 +1,8 @@
 use figment::{Figment, Profile};
 use pretty_assertions::assert_eq;
+use tracing::Level;
 
-use crate::log::LogLevel;
+// use crate::log::LogLevel;
 use crate::data::{Limits, ToByteUnit};
 use crate::config::{Config, CliColors};
 
@@ -65,7 +66,7 @@ fn test_toml_file() {
             workers: 20,
             ident: ident!("Something Cool"),
             keep_alive: 10,
-            log_level: LogLevel::Off,
+            log_level: None,
             cli_colors: CliColors::Never,
             ..Config::default()
         });
@@ -75,7 +76,7 @@ fn test_toml_file() {
                 ident = "Something Else Cool"
                 workers = 20
                 keep_alive = 10
-                log_level = "off"
+                log_level = "trace"
                 cli_colors = 0
             "#)?;
 
@@ -84,7 +85,7 @@ fn test_toml_file() {
             workers: 20,
             ident: ident!("Something Else Cool"),
             keep_alive: 10,
-            log_level: LogLevel::Off,
+            log_level: Some(Level::TRACE),
             cli_colors: CliColors::Never,
             ..Config::default()
         });
@@ -94,7 +95,7 @@ fn test_toml_file() {
                 [default]
                 workers = 20
                 keep_alive = 10
-                log_level = "off"
+                log_level = 2
                 cli_colors = 0
             "#)?;
 
@@ -102,7 +103,7 @@ fn test_toml_file() {
         assert_eq!(config, Config {
             workers: 20,
             keep_alive: 10,
-            log_level: LogLevel::Off,
+            log_level: Some(Level::WARN),
             cli_colors: CliColors::Never,
             ..Config::default()
         });

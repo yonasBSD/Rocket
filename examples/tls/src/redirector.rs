@@ -3,7 +3,6 @@
 use std::net::SocketAddr;
 
 use rocket::http::Status;
-use rocket::log::LogLevel;
 use rocket::{route, Error, Request, Data, Route, Orbit, Rocket, Ignite};
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::response::Redirect;
@@ -85,7 +84,7 @@ impl Fairing for Redirector {
         let config = Config {
             tls_addr,
             server: rocket::Config {
-                log_level: LogLevel::Critical,
+                // log_level: LogLevel::Critical,
                 ..rocket.config().clone()
             },
         };

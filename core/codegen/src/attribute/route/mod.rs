@@ -41,7 +41,7 @@ fn query_decls(route: &Route) -> Option<TokenStream> {
     }
 
     define_spanned_export!(Span::call_site() =>
-        __req, __data, _log, _form, Outcome, _Ok, _Err, _Some, _None, Status
+        __req, __data, _form, Outcome, _Ok, _Err, _Some, _None, Status
     );
 
     // Record all of the static parameters for later filtering.
@@ -105,8 +105,8 @@ fn query_decls(route: &Route) -> Option<TokenStream> {
             )*
 
             if !__e.is_empty() {
-                #_log::warn_!("Query string failed to match route declaration.");
-                for _err in __e { #_log::warn_!("{}", _err); }
+                ::rocket::warn_!("Query string failed to match route declaration.");
+                for _err in __e { ::rocket::warn_!("{}", _err); }
                 return #Outcome::Forward((#__data, #Status::UnprocessableEntity));
             }
 
@@ -118,18 +118,18 @@ fn query_decls(route: &Route) -> Option<TokenStream> {
 fn request_guard_decl(guard: &Guard) -> TokenStream {
     let (ident, ty) = (guard.fn_ident.rocketized(), &guard.ty);
     define_spanned_export!(ty.span() =>
-        __req, __data, _request, _log, FromRequest, Outcome
+        __req, __data, _request, FromRequest, Outcome
     );
 
     quote_spanned! { ty.span() =>
         let #ident: #ty = match <#ty as #FromRequest>::from_request(#__req).await {
             #Outcome::Success(__v) => __v,
             #Outcome::Forward(__e) => {
-                #_log::warn_!("Request guard `{}` is forwarding.", stringify!(#ty));
+                ::rocket::warn_!("Request guard `{}` is forwarding.", stringify!(#ty));
                 return #Outcome::Forward((#__data, __e));
             },
             #Outcome::Error((__c, __e)) => {
-                #_log::warn_!("Request guard `{}` failed: {:?}.", stringify!(#ty), __e);
+                ::rocket::warn_!("Request guard `{}` failed: {:?}.", stringify!(#ty), __e);
                 return #Outcome::Error(__c);
             }
         };
@@ -139,13 +139,13 @@ fn request_guard_decl(guard: &Guard) -> TokenStream {
 fn param_guard_decl(guard: &Guard) -> TokenStream {
     let (i, name, ty) = (guard.index, &guard.name, &guard.ty);
     define_spanned_export!(ty.span() =>
-        __req, __data, _log, _None, _Some, _Ok, _Err,
+        __req, __data, _None, _Some, _Ok, _Err,
         Outcome, FromSegments, FromParam, Status
     );
 
     // Returned when a dynamic parameter fails to parse.
     let parse_error = quote!({
-        #_log::warn_!("Parameter guard `{}: {}` is forwarding: {:?}.",
+        ::rocket::warn_!("Parameter guard `{}: {}` is forwarding: {:?}.",
             #name, stringify!(#ty), __error);
 
         #Outcome::Forward((#__data, #Status::UnprocessableEntity))
@@ -161,9 +161,9 @@ fn param_guard_decl(guard: &Guard) -> TokenStream {
                     #_Err(__error) => return #parse_error,
                 },
                 #_None => {
-                    #_log::error_!("Internal invariant broken: dyn param {} not found.", #i);
-                    #_log::error_!("Please report this to the Rocket issue tracker.");
-                    #_log::error_!("https://github.com/rwf2/Rocket/issues");
+                    ::rocket::error_!("Internal invariant broken: dyn param {} not found.", #i);
+                    ::rocket::error_!("Please report this to the Rocket issue tracker.");
+                    ::rocket::error_!("https://github.com/rwf2/Rocket/issues");
                     return #Outcome::Forward((#__data, #Status::InternalServerError));
                 }
             }
@@ -182,17 +182,17 @@ fn param_guard_decl(guard: &Guard) -> TokenStream {
 
 fn data_guard_decl(guard: &Guard) -> TokenStream {
     let (ident, ty) = (guard.fn_ident.rocketized(), &guard.ty);
-    define_spanned_export!(ty.span() => _log, __req, __data, FromData, Outcome);
+    define_spanned_export!(ty.span() => __req, __data, FromData, Outcome);
 
     quote_spanned! { ty.span() =>
         let #ident: #ty = match <#ty as #FromData>::from_data(#__req, #__data).await {
             #Outcome::Success(__d) => __d,
             #Outcome::Forward((__d, __e)) => {
-                #_log::warn_!("Data guard `{}` is forwarding.", stringify!(#ty));
+                ::rocket::warn_!("Data guard `{}` is forwarding.", stringify!(#ty));
                 return #Outcome::Forward((__d, __e));
             }
             #Outcome::Error((__c, __e)) => {
-                #_log::warn_!("Data guard `{}` failed: {:?}.", stringify!(#ty), __e);
+                ::rocket::warn_!("Data guard `{}` failed: {:?}.", stringify!(#ty), __e);
                 return #Outcome::Error(__c);
             }
         };

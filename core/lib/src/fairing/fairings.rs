@@ -2,9 +2,6 @@ use std::collections::HashSet;
 
 use crate::{Rocket, Request, Response, Data, Build, Orbit};
 use crate::fairing::{Fairing, Info, Kind};
-use crate::log::PaintExt;
-
-use yansi::Paint;
 
 #[derive(Default)]
 pub struct Fairings {
@@ -173,12 +170,12 @@ impl Fairings {
     pub fn pretty_print(&self) {
         let active_fairings = self.active().collect::<HashSet<_>>();
         if !active_fairings.is_empty() {
-            launch_meta!("{}{}:", "📡 ".emoji(), "Fairings".magenta());
-
-            for (_, fairing) in iter!(self, active_fairings.into_iter()) {
-                let (name, kind) = (fairing.info().name, fairing.info().kind);
-                launch_meta_!("{} ({})", name.primary().bold(), kind.blue().bold());
-            }
+            tracing::info_span!("fairings").in_scope(|| {
+                for (_, fairing) in iter!(self, active_fairings.into_iter()) {
+                    let (name, kind) = (fairing.info().name, fairing.info().kind);
+                    info!(name: "fairing", name, %kind)
+                }
+            });
         }
     }
 }

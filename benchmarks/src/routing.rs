@@ -80,7 +80,7 @@ fn generate_matching_requests<'c>(client: &'c Client, routes: &[Route]) -> Vec<L
 fn client(routes: Vec<Route>) -> Client {
     let config = Config {
         profile: Config::RELEASE_PROFILE,
-        log_level: rocket::config::LogLevel::Off,
+        // log_level: rocket::config::LogLevel::Off,
         cli_colors: config::CliColors::Never,
         shutdown: config::ShutdownConfig {
             ctrlc: false,

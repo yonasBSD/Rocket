@@ -174,6 +174,7 @@ impl Error {
     /// }
     /// # };
     /// ```
+    // FIXME: Remove `Error` panicking behavior. Make display/debug better.
     pub fn pretty_print(&self) -> &'static str {
         self.mark_handled();
         match self.kind() {

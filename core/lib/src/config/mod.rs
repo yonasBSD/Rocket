@@ -122,7 +122,7 @@ pub use ident::Ident;
 pub use config::Config;
 pub use cli_colors::CliColors;
 
-pub use crate::log::LogLevel;
+// pub use crate::log::LogLevel;
 pub use crate::shutdown::ShutdownConfig;
 
 #[cfg(feature = "tls")]

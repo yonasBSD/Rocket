@@ -74,6 +74,8 @@ fn hello(lang: Option<Lang>, opt: Options<'_>) -> String {
 
 #[launch]
 fn rocket() -> _ {
+    // tracing_subscriber::fmt::init();
+    //
     rocket::build()
         .mount("/", routes![hello])
         .mount("/hello", routes![world, mir])

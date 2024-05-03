@@ -2,16 +2,15 @@ use figment::{Figment, Profile, Provider, Metadata, error::Result};
 use figment::providers::{Serialized, Env, Toml, Format};
 use figment::value::{Map, Dict, magic::RelativePathBuf};
 use serde::{Deserialize, Serialize};
-use yansi::{Paint, Style, Color::Primary};
-
-use crate::log::PaintExt;
-use crate::config::{LogLevel, ShutdownConfig, Ident, CliColors};
-use crate::request::{self, Request, FromRequest};
-use crate::http::uncased::Uncased;
-use crate::data::Limits;
+use tracing::Level;
 
 #[cfg(feature = "secrets")]
 use crate::config::SecretKey;
+use crate::config::{ShutdownConfig, Ident, CliColors};
+use crate::request::{self, Request, FromRequest};
+use crate::http::uncased::Uncased;
+use crate::data::Limits;
+use crate::util::Formatter;
 
 /// Rocket server configuration.
 ///
@@ -122,8 +121,9 @@ pub struct Config {
     pub secret_key: SecretKey,
     /// Graceful shutdown configuration. **(default: [`ShutdownConfig::default()`])**
     pub shutdown: ShutdownConfig,
-    /// Max level to log. **(default: _debug_ `normal` / _release_ `critical`)**
-    pub log_level: LogLevel,
+    /// Max level to log. **(default: _debug_ `info` / _release_ `error`)**
+    #[serde(with = "crate::trace::level")]
+    pub log_level: Option<Level>,
     /// Whether to use colors and emoji when logging. **(default:
     /// [`CliColors::Auto`])**
     pub cli_colors: CliColors,
@@ -163,15 +163,6 @@ impl Default for Config {
 }
 
 impl Config {
-    const DEPRECATED_KEYS: &'static [(&'static str, Option<&'static str>)] = &[
-        ("env", Some(Self::PROFILE)), ("log", Some(Self::LOG_LEVEL)),
-        ("read_timeout", None), ("write_timeout", None),
-    ];
-
-    const DEPRECATED_PROFILES: &'static [(&'static str, Option<&'static str>)] = &[
-        ("dev", Some("debug")), ("prod", Some("release")), ("stag", None)
-    ];
-
     /// Returns the default configuration for the `debug` profile, _irrespective
     /// of the Rust compilation profile_ and `ROCKET_PROFILE`.
     ///
@@ -201,7 +192,7 @@ impl Config {
             #[cfg(feature = "secrets")]
             secret_key: SecretKey::zero(),
             shutdown: ShutdownConfig::default(),
-            log_level: LogLevel::Normal,
+            log_level: Some(Level::INFO),
             cli_colors: CliColors::Auto,
             __non_exhaustive: (),
         }
@@ -225,7 +216,7 @@ impl Config {
     pub fn release_default() -> Config {
         Config {
             profile: Self::RELEASE_PROFILE,
-            log_level: LogLevel::Critical,
+            log_level: Some(Level::ERROR),
             ..Config::debug_default()
         }
     }
@@ -314,7 +305,7 @@ impl Config {
     }
 
     #[cfg(feature = "secrets")]
-    pub(crate) fn known_secret_key_used(&self) -> bool {
+    fn known_secret_key_used(&self) -> bool {
         const KNOWN_SECRET_KEYS: &[&str] = &[
             "hPRYyVRiMyxpw5sBB1XeCMN1kFsDCqKvBi2QJxBVHQk="
         ];
@@ -325,93 +316,82 @@ impl Config {
         })
     }
 
-    #[inline]
-    pub(crate) fn trace_print(&self, figment: &Figment) {
-        if self.log_level != LogLevel::Debug {
-            return;
-        }
+    #[tracing::instrument(name = "config",  skip_all, fields(profile = %figment.profile()))]
+    pub(crate) fn pretty_print(&self, figment: &Figment) {
+        info! {
+            name: "values",
+            http2 = cfg!(feature = "http2"),
+            log_level = self.log_level.map(|l| l.as_str()),
+            cli_colors = %self.cli_colors,
+            workers = self.workers,
+            max_blocking = self.max_blocking,
+            ident = %self.ident,
+            ip_header = self.ip_header.as_ref().map(|s| s.as_str()),
+            proxy_proto_header = self.proxy_proto_header.as_ref().map(|s| s.as_str()),
+            limits = %Formatter(|f| f.debug_map()
+                .entries(self.limits.limits.iter().map(|(k, v)| (k.as_str(), v.to_string())))
+                .finish()),
+            temp_dir = %self.temp_dir.relative().display(),
+            keep_alive = (self.keep_alive != 0).then_some(self.keep_alive),
+            shutdown.ctrlc = self.shutdown.ctrlc,
+            shutdown.signals = %{
+                #[cfg(not(unix))] {
+                    "disabled (not unix)"
+                }
 
-        trace!("-- configuration trace information --");
+                #[cfg(unix)] {
+                    Formatter(|f| f.debug_set()
+                        .entries(self.shutdown.signals.iter().map(|s| s.as_str()))
+                        .finish())
+                }
+            },
+            shutdown.grace = self.shutdown.grace,
+            shutdown.mercy = self.shutdown.mercy,
+            shutdown.force = self.shutdown.force,
+        };
+
         for param in Self::PARAMETERS {
-            if let Some(meta) = figment.find_metadata(param) {
-                let (param, name) = (param.blue(), meta.name.primary());
-                if let Some(ref source) = meta.source {
-                    trace_!("{:?} parameter source: {} ({})", param, name, source);
-                } else {
-                    trace_!("{:?} parameter source: {}", param, name);
+            if let Some(source) = figment.find_metadata(param) {
+                trace! {
+                    param,
+                    %source.name,
+                    source.source = source.source.as_ref().map(|s| s.to_string()),
                 }
             }
         }
-    }
-
-    pub(crate) fn pretty_print(&self, figment: &Figment) {
-        static VAL: Style = Primary.bold();
-
-        self.trace_print(figment);
-        launch_meta!("{}Configured for {}.", "🔧 ".emoji(), self.profile.underline());
-        launch_meta_!("workers: {}", self.workers.paint(VAL));
-        launch_meta_!("max blocking threads: {}", self.max_blocking.paint(VAL));
-        launch_meta_!("ident: {}", self.ident.paint(VAL));
-
-        match self.ip_header {
-            Some(ref name) => launch_meta_!("IP header: {}", name.paint(VAL)),
-            None => launch_meta_!("IP header: {}", "disabled".paint(VAL))
-        }
-
-        match self.proxy_proto_header.as_ref() {
-            Some(name) => launch_meta_!("Proxy-Proto header: {}", name.paint(VAL)),
-            None => launch_meta_!("Proxy-Proto header: {}", "disabled".paint(VAL))
-        }
-
-        launch_meta_!("limits: {}", self.limits.paint(VAL));
-        launch_meta_!("temp dir: {}", self.temp_dir.relative().display().paint(VAL));
-        launch_meta_!("http/2: {}", (cfg!(feature = "http2").paint(VAL)));
-
-        match self.keep_alive {
-            0 => launch_meta_!("keep-alive: {}", "disabled".paint(VAL)),
-            ka => launch_meta_!("keep-alive: {}{}", ka.paint(VAL), "s".paint(VAL)),
-        }
-
-        launch_meta_!("shutdown: {}", self.shutdown.paint(VAL));
-        launch_meta_!("log level: {}", self.log_level.paint(VAL));
-        launch_meta_!("cli colors: {}", self.cli_colors.paint(VAL));
 
         // Check for now deprecated config values.
         for (key, replacement) in Self::DEPRECATED_KEYS {
-            if let Some(md) = figment.find_metadata(key) {
-                warn!("found value for deprecated config key `{}`", key.paint(VAL));
-                if let Some(ref source) = md.source {
-                    launch_meta_!("in {} {}", source.paint(VAL), md.name);
-                }
-
-                if let Some(new_key) = replacement {
-                    launch_meta_!("key has been by replaced by `{}`", new_key.paint(VAL));
-                } else {
-                    launch_meta_!("key has no special meaning");
-                }
-            }
-        }
-
-        // Check for now removed config values.
-        for (prefix, replacement) in Self::DEPRECATED_PROFILES {
-            if let Some(profile) = figment.profiles().find(|p| p.starts_with(prefix)) {
-                warn!("found set deprecated profile `{}`", profile.paint(VAL));
-
-                if let Some(new_profile) = replacement {
-                    launch_meta_!("profile was replaced by `{}`", new_profile.paint(VAL));
-                } else {
-                    launch_meta_!("profile `{}` has no special meaning", profile);
+            if let Some(source) = figment.find_metadata(key) {
+                warn! {
+                    name: "deprecated",
+                    key,
+                    replacement,
+                    %source.name,
+                    source.source = source.source.as_ref().map(|s| s.to_string()),
+                    "config key `{key}` is deprecated and has no meaning"
                 }
             }
         }
 
         #[cfg(feature = "secrets")] {
-            launch_meta_!("secret key: {}", self.secret_key.paint(VAL));
             if !self.secret_key.is_provided() {
-                warn!("secrets enabled without configuring a stable `secret_key`");
-                warn_!("private/signed cookies will become unreadable after restarting");
-                launch_meta_!("disable the `secrets` feature or configure a `secret_key`");
-                launch_meta_!("this becomes a {} in non-debug profiles", "hard error".red());
+                warn! {
+                    name: "volatile_secret_key",
+                    "secrets enabled without configuring a stable `secret_key`; \
+                    private/signed cookies will become unreadable after restarting; \
+                    disable the `secrets` feature or configure a `secret_key`; \
+                    this becomes a hard error in non-debug profiles",
+                }
+            }
+
+            if self.known_secret_key_used() {
+                warn! {
+                    name: "insecure_secret_key",
+                    "The configured `secret_key` is exposed and insecure. \
+                    The configured key is publicly published and thus insecure. \
+                    Try generating a new key with `head -c64 /dev/urandom | base64`."
+                }
             }
         }
     }
@@ -484,6 +464,13 @@ impl Config {
         Self::SECRET_KEY, Self::TEMP_DIR, Self::LOG_LEVEL, Self::SHUTDOWN,
         Self::CLI_COLORS,
     ];
+
+    /// An array of deprecated stringy parameter names.
+    const DEPRECATED_KEYS: &'static [(&'static str, Option<&'static str>)] = &[
+        ("env", Some(Self::PROFILE)), ("log", Some(Self::LOG_LEVEL)),
+        ("read_timeout", None), ("write_timeout", None),
+    ];
+
 }
 
 impl Provider for Config {
@@ -534,63 +521,33 @@ pub fn bail_with_config_error<T>(error: figment::Error) -> T {
 
 #[doc(hidden)]
 pub fn pretty_print_error(error: figment::Error) {
-    use figment::error::{Kind, OneOf};
+    use figment::error::{OneOf as V, Kind::*};
 
-    crate::log::init_default();
-    error!("Failed to extract valid configuration.");
     for e in error {
-        fn w<T>(v: T) -> yansi::Painted<T> { Paint::new(v).primary() }
+        let span = tracing::error_span! {
+            "error: configuration",
+            key = (!e.path.is_empty()).then_some(&e.path).and_then(|path| {
+                let (profile, metadata) = (e.profile.as_ref()?, e.metadata.as_ref()?);
+                Some(metadata.interpolate(profile, path))
+            }),
+            source.name = e.metadata.as_ref().map(|m| &*m.name),
+            source.source = e.metadata.as_ref().and_then(|m| Some(m.source.as_ref()?.to_string())),
+        };
 
+        let _scope = span.enter();
         match e.kind {
-            Kind::Message(msg) => error_!("{}", msg),
-            Kind::InvalidType(v, exp) => {
-                error_!("invalid type: found {}, expected {}", w(v), w(exp));
-            }
-            Kind::InvalidValue(v, exp) => {
-                error_!("invalid value {}, expected {}", w(v), w(exp));
-            },
-            Kind::InvalidLength(v, exp) => {
-                error_!("invalid length {}, expected {}", w(v), w(exp))
-            },
-            Kind::UnknownVariant(v, exp) => {
-                error_!("unknown variant: found `{}`, expected `{}`", w(v), w(OneOf(exp)))
-            }
-            Kind::UnknownField(v, exp) => {
-                error_!("unknown field: found `{}`, expected `{}`", w(v), w(OneOf(exp)))
-            }
-            Kind::MissingField(v) => {
-                error_!("missing field `{}`", w(v))
-            }
-            Kind::DuplicateField(v) => {
-                error_!("duplicate field `{}`", w(v))
-            }
-            Kind::ISizeOutOfRange(v) => {
-                error_!("signed integer `{}` is out of range", w(v))
-            }
-            Kind::USizeOutOfRange(v) => {
-                error_!("unsigned integer `{}` is out of range", w(v))
-            }
-            Kind::Unsupported(v) => {
-                error_!("unsupported type `{}`", w(v))
-            }
-            Kind::UnsupportedKey(a, e) => {
-                error_!("unsupported type `{}` for key: must be `{}`", w(a), w(e))
-            }
-        }
-
-        if let (Some(ref profile), Some(ref md)) = (&e.profile, &e.metadata) {
-            if !e.path.is_empty() {
-                let key = md.interpolate(profile, &e.path);
-                info_!("for key {}", w(key));
-            }
-        }
-
-        if let Some(md) = e.metadata {
-            if let Some(source) = md.source {
-                info_!("in {} {}", w(source), md.name);
-            } else {
-                info_!("in {}", w(md.name));
-            }
+            Message(message) => error!(message),
+            InvalidType(actual, expected) => error!(name: "invalid type", %actual, expected),
+            InvalidValue(actual, expected) => error!(name: "invalid value", %actual, expected),
+            InvalidLength(actual, expected) => error!(name: "invalid length", %actual, expected),
+            UnknownVariant(actual, v) => error!(name: "unknown variant", actual, expected = %V(v)),
+            UnknownField(actual, v) => error!(name: "unknown field", actual, expected = %V(v)),
+            UnsupportedKey(actual, v) => error!(name: "unsupported key", %actual, expected = &*v),
+            MissingField(value) => error!(name: "missing field", value = &*value),
+            DuplicateField(value) => error!(name: "duplicate field", value),
+            ISizeOutOfRange(value) => error!(name: "out of range signed integer", value),
+            USizeOutOfRange(value) => error!(name: "out of range unsigned integer", value),
+            Unsupported(value) => error!(name: "unsupported type", %value),
         }
     }
 }
