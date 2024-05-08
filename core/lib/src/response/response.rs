@@ -789,9 +789,9 @@ impl<'r> Response<'r> {
     }
 
     /// Returns `Ok(Some(_))` if `self` contains a suitable handler for any of
-    /// the comma-separated protocols any of the strings in `I`. Returns
-    /// `Ok(None)` if `self` doesn't support any kind of upgrade. Returns
-    /// `Err(_)` if `protocols` is non-empty but no match was found in `self`.
+    /// the comma-separated protocol strings in `I`. Returns `Err(_)` if
+    /// `protocols` is non-empty but no match was found in `self`. If `self`
+    /// doesn't support any kind of upgrade, return `Ok(None)`.
     pub(crate) fn search_upgrades<'a, I: Iterator<Item = &'a str>>(
         &mut self,
         protocols: I

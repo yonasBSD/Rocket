@@ -10,7 +10,7 @@ use crate::config::{ShutdownConfig, Ident, CliColors};
 use crate::request::{self, Request, FromRequest};
 use crate::http::uncased::Uncased;
 use crate::data::Limits;
-use crate::util::Formatter;
+use crate::trace::traceable::Traceable;
 
 /// Rocket server configuration.
 ///
@@ -303,98 +303,6 @@ impl Config {
     pub fn from<T: Provider>(provider: T) -> Self {
         Self::try_from(provider).unwrap_or_else(bail_with_config_error)
     }
-
-    #[cfg(feature = "secrets")]
-    fn known_secret_key_used(&self) -> bool {
-        const KNOWN_SECRET_KEYS: &[&str] = &[
-            "hPRYyVRiMyxpw5sBB1XeCMN1kFsDCqKvBi2QJxBVHQk="
-        ];
-
-        KNOWN_SECRET_KEYS.iter().any(|&key_str| {
-            let value = figment::value::Value::from(key_str);
-            self.secret_key == value.deserialize().expect("known key is valid")
-        })
-    }
-
-    #[tracing::instrument(name = "config",  skip_all, fields(profile = %figment.profile()))]
-    pub(crate) fn pretty_print(&self, figment: &Figment) {
-        info! {
-            name: "values",
-            http2 = cfg!(feature = "http2"),
-            log_level = self.log_level.map(|l| l.as_str()),
-            cli_colors = %self.cli_colors,
-            workers = self.workers,
-            max_blocking = self.max_blocking,
-            ident = %self.ident,
-            ip_header = self.ip_header.as_ref().map(|s| s.as_str()),
-            proxy_proto_header = self.proxy_proto_header.as_ref().map(|s| s.as_str()),
-            limits = %Formatter(|f| f.debug_map()
-                .entries(self.limits.limits.iter().map(|(k, v)| (k.as_str(), v.to_string())))
-                .finish()),
-            temp_dir = %self.temp_dir.relative().display(),
-            keep_alive = (self.keep_alive != 0).then_some(self.keep_alive),
-            shutdown.ctrlc = self.shutdown.ctrlc,
-            shutdown.signals = %{
-                #[cfg(not(unix))] {
-                    "disabled (not unix)"
-                }
-
-                #[cfg(unix)] {
-                    Formatter(|f| f.debug_set()
-                        .entries(self.shutdown.signals.iter().map(|s| s.as_str()))
-                        .finish())
-                }
-            },
-            shutdown.grace = self.shutdown.grace,
-            shutdown.mercy = self.shutdown.mercy,
-            shutdown.force = self.shutdown.force,
-        };
-
-        for param in Self::PARAMETERS {
-            if let Some(source) = figment.find_metadata(param) {
-                trace! {
-                    param,
-                    %source.name,
-                    source.source = source.source.as_ref().map(|s| s.to_string()),
-                }
-            }
-        }
-
-        // Check for now deprecated config values.
-        for (key, replacement) in Self::DEPRECATED_KEYS {
-            if let Some(source) = figment.find_metadata(key) {
-                warn! {
-                    name: "deprecated",
-                    key,
-                    replacement,
-                    %source.name,
-                    source.source = source.source.as_ref().map(|s| s.to_string()),
-                    "config key `{key}` is deprecated and has no meaning"
-                }
-            }
-        }
-
-        #[cfg(feature = "secrets")] {
-            if !self.secret_key.is_provided() {
-                warn! {
-                    name: "volatile_secret_key",
-                    "secrets enabled without configuring a stable `secret_key`; \
-                    private/signed cookies will become unreadable after restarting; \
-                    disable the `secrets` feature or configure a `secret_key`; \
-                    this becomes a hard error in non-debug profiles",
-                }
-            }
-
-            if self.known_secret_key_used() {
-                warn! {
-                    name: "insecure_secret_key",
-                    "The configured `secret_key` is exposed and insecure. \
-                    The configured key is publicly published and thus insecure. \
-                    Try generating a new key with `head -c64 /dev/urandom | base64`."
-                }
-            }
-        }
-    }
 }
 
 /// Associated constants for default profiles.
@@ -416,11 +324,6 @@ impl Config {
 
 /// Associated constants for stringy versions of configuration parameters.
 impl Config {
-    /// The stringy parameter name for setting/extracting [`Config::profile`].
-    ///
-    /// This isn't `pub` because setting it directly does nothing.
-    const PROFILE: &'static str = "profile";
-
     /// The stringy parameter name for setting/extracting [`Config::workers`].
     pub const WORKERS: &'static str = "workers";
 
@@ -465,12 +368,22 @@ impl Config {
         Self::CLI_COLORS,
     ];
 
+    /// The stringy parameter name for setting/extracting [`Config::profile`].
+    ///
+    /// This isn't `pub` because setting it directly does nothing.
+    const PROFILE: &'static str = "profile";
+
     /// An array of deprecated stringy parameter names.
-    const DEPRECATED_KEYS: &'static [(&'static str, Option<&'static str>)] = &[
+    pub(crate) const DEPRECATED_KEYS: &'static [(&'static str, Option<&'static str>)] = &[
         ("env", Some(Self::PROFILE)), ("log", Some(Self::LOG_LEVEL)),
         ("read_timeout", None), ("write_timeout", None),
     ];
 
+    /// Secret keys that have been used in docs or leaked otherwise.
+    #[cfg(feature = "secrets")]
+    pub(crate) const KNOWN_SECRET_KEYS: &'static [&'static str] = &[
+        "hPRYyVRiMyxpw5sBB1XeCMN1kFsDCqKvBi2QJxBVHQk="
+    ];
 }
 
 impl Provider for Config {
@@ -520,34 +433,7 @@ pub fn bail_with_config_error<T>(error: figment::Error) -> T {
 }
 
 #[doc(hidden)]
+// FIXME: Remove this funtion.
 pub fn pretty_print_error(error: figment::Error) {
-    use figment::error::{OneOf as V, Kind::*};
-
-    for e in error {
-        let span = tracing::error_span! {
-            "error: configuration",
-            key = (!e.path.is_empty()).then_some(&e.path).and_then(|path| {
-                let (profile, metadata) = (e.profile.as_ref()?, e.metadata.as_ref()?);
-                Some(metadata.interpolate(profile, path))
-            }),
-            source.name = e.metadata.as_ref().map(|m| &*m.name),
-            source.source = e.metadata.as_ref().and_then(|m| Some(m.source.as_ref()?.to_string())),
-        };
-
-        let _scope = span.enter();
-        match e.kind {
-            Message(message) => error!(message),
-            InvalidType(actual, expected) => error!(name: "invalid type", %actual, expected),
-            InvalidValue(actual, expected) => error!(name: "invalid value", %actual, expected),
-            InvalidLength(actual, expected) => error!(name: "invalid length", %actual, expected),
-            UnknownVariant(actual, v) => error!(name: "unknown variant", actual, expected = %V(v)),
-            UnknownField(actual, v) => error!(name: "unknown field", actual, expected = %V(v)),
-            UnsupportedKey(actual, v) => error!(name: "unsupported key", %actual, expected = &*v),
-            MissingField(value) => error!(name: "missing field", value = &*value),
-            DuplicateField(value) => error!(name: "duplicate field", value),
-            ISizeOutOfRange(value) => error!(name: "out of range signed integer", value),
-            USizeOutOfRange(value) => error!(name: "out of range unsigned integer", value),
-            Unsupported(value) => error!(name: "unsupported type", %value),
-        }
-    }
+    error.trace_error()
 }

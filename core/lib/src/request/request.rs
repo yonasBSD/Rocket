@@ -1041,16 +1041,16 @@ impl<'r> Request<'r> {
         self.routed_segments(0..).get(n)
     }
 
-    /// Get the segments beginning at the `n`th, 0-indexed, after the mount
+    /// Get the segments beginning at the `range`, 0-indexed, after the mount
     /// point for the currently matched route, if they exist. Used by codegen.
     #[inline]
-    pub fn routed_segments(&self, n: RangeFrom<usize>) -> Segments<'_, Path> {
+    pub fn routed_segments(&self, range: RangeFrom<usize>) -> Segments<'_, Path> {
         let mount_segments = self.route()
             .map(|r| r.uri.metadata.base_len)
             .unwrap_or(0);
 
-        trace!("requesting {}.. ({}..) from {}", n.start, mount_segments, self);
-        self.uri().path().segments().skip(mount_segments + n.start)
+        trace!(name: "segments", mount_segments, range.start);
+        self.uri().path().segments().skip(mount_segments + range.start)
     }
 
     // Retrieves the pre-parsed query items. Used by matching and codegen.
@@ -1112,10 +1112,14 @@ impl<'r> Request<'r> {
                 // a security issue with Hyper, there isn't much we can do.
                 #[cfg(debug_assertions)]
                 if Origin::parse(uri.as_str()).is_err() {
-                    warn!("Hyper/Rocket URI validity discord: {:?}", uri.as_str());
-                    info_!("Hyper believes the URI is valid while Rocket disagrees.");
-                    info_!("This is likely a Hyper bug with potential security implications.");
-                    warn_!("Please report this warning to Rocket's GitHub issue tracker.");
+                    warn!(
+                        name: "uri_discord",
+                        %uri,
+                        "Hyper/Rocket URI validity discord: {uri}\n\
+                        Hyper believes the URI is valid while Rocket disagrees.\n\
+                        This is likely a Hyper bug with potential security implications.\n\
+                        Please report this warning to Rocket's GitHub issue tracker."
+                    )
                 }
 
                 Origin::new(uri.path(), uri.query().map(Cow::Borrowed))
@@ -1200,6 +1204,7 @@ impl fmt::Debug for Request<'_> {
     }
 }
 
+// FIXME: Remov me to identify dependent `TRACE` statements.
 impl fmt::Display for Request<'_> {
     /// Pretty prints a Request. Primarily used by Rocket's logging.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

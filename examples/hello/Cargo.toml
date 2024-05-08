@@ -7,4 +7,3 @@ publish = false
 
 [dependencies]
 rocket = { path = "../../core/lib", features = ["secrets"] }
-tracing-subscriber = "0.3"

@@ -11,6 +11,7 @@ use figment::{Figment, Provider};
 use futures::TryFutureExt;
 
 use crate::shutdown::{Stages, Shutdown};
+use crate::trace::traceable::{Traceable, TraceableCollection};
 use crate::{sentinel, shield::Shield, Catcher, Config, Route};
 use crate::listener::{Bind, DefaultListener, Endpoint, Listener};
 use crate::router::Router;
@@ -562,15 +563,20 @@ impl Rocket<Build> {
         self.catchers.clone().into_iter().for_each(|c| router.add_catcher(c));
         router.finalize().map_err(ErrorKind::Collisions)?;
 
-        // Finally, freeze managed state.
+        // Finally, freeze managed state for faster access later.
         self.state.freeze();
 
         // Log everything we know: config, routes, catchers, fairings.
         // TODO: Store/print managed state type names?
-        config.pretty_print(self.figment());
-        log_items("routes", self.routes(), |r| &r.uri.base, |r| &r.uri);
-        log_items("catchers", self.catchers(), |c| &c.base, |c| &c.base);
-        self.fairings.pretty_print();
+        let fairings = self.fairings.unique_set();
+        info_span!("config" [profile = %self.figment().profile()] => {
+            config.trace_info();
+            self.figment().trace_debug();
+        });
+
+        info_span!("routes" [count = self.routes.len()] => self.routes().trace_all_info());
+        info_span!("catchers" [count = self.catchers.len()] => self.catchers().trace_all_info());
+        info_span!("fairings" [count = fairings.len()] => fairings.trace_all_info());
 
         // Ignite the rocket.
         let rocket: Rocket<Ignite> = Rocket(Igniting {
@@ -759,7 +765,7 @@ impl Rocket<Orbit> {
             info_!("Forced shutdown is disabled. Runtime settings may be suboptimal.");
         }
 
-        tracing::info!(target: "rocket::liftoff", endpoint = %rocket.endpoints[0]);
+        tracing::info!(name: "liftoff", endpoint = %rocket.endpoints[0]);
     }
 
     /// Returns the finalized, active configuration. This is guaranteed to

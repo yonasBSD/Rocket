@@ -33,7 +33,7 @@ uuid = ["uuid_", "rocket_http/uuid"]
 tls = ["rustls", "tokio-rustls", "rustls-pemfile"]
 mtls = ["tls", "x509-parser"]
 tokio-macros = ["tokio/macros"]
-trace = ["tracing-subscriber", "tinyvec", "rustls?/logging", "tokio-rustls?/logging", "multer/log"]
+trace = ["tracing-subscriber", "tinyvec", "thread_local", "rustls?/logging", "tokio-rustls?/logging", "multer/log"]
 
 [dependencies]
 # Optional serialization dependencies.
@@ -78,6 +78,7 @@ state = "0.6"
 # tracing
 tracing = { version = "0.1.40", default-features = false, features = ["std", "attributes"] }
 tinyvec = { version = "1.6", optional = true, features = ["std", "rustc_1_57"] }
+thread_local = { version = "1.1", optional = true }
 
 [dependencies.tracing-subscriber]
 version = "0.3.18"

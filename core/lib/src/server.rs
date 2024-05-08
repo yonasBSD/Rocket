@@ -17,10 +17,16 @@ use crate::error::log_server_error;
 use crate::data::{IoStream, RawStream};
 use crate::util::{spawn_inspect, FutureExt, ReaderStream};
 use crate::http::Status;
+use crate::trace::traceable::{Traceable, TraceableCollection};
 
 type Result<T, E = crate::Error> = std::result::Result<T, E>;
 
 impl Rocket<Orbit> {
+    #[tracing::instrument("request", skip_all, fields(
+        method = %parts.method,
+        uri = %parts.uri,
+        autohandled
+    ))]
     async fn service<T: for<'a> Into<RawStream<'a>>>(
         self: Arc<Self>,
         parts: http::request::Parts,
@@ -32,6 +38,7 @@ impl Rocket<Orbit> {
             Request::from_hyp(rocket, parts, connection).unwrap_or_else(|e| e)
         });
 
+        debug_span!("request headers" => request.inner().headers().iter().trace_all_debug());
         let mut response = request.into_response(
             stream,
             |rocket, request, data| Box::pin(rocket.preprocess(request, data)),
@@ -45,10 +52,12 @@ impl Rocket<Orbit> {
         ).await;
 
         // TODO: Should upgrades be handled in dispatch?
+        response.inner().trace_info();
+        debug_span!("response headers" => response.inner().headers().iter().trace_all_debug());
         let io_handler = response.make_io_handler(Rocket::extract_io_handler);
-        if let (Some(handler), Some(upgrade)) = (io_handler, upgrade) {
+        if let (Some((proto, handler)), Some(upgrade)) = (io_handler, upgrade) {
             let upgrade = upgrade.map_ok(IoStream::from).map_err(io::Error::other);
-            tokio::task::spawn(io_handler_task(upgrade, handler));
+            tokio::task::spawn(io_handler_task(proto, upgrade, handler));
         }
 
         let mut builder = hyper::Response::builder();
@@ -73,19 +82,20 @@ impl Rocket<Orbit> {
     }
 }
 
-async fn io_handler_task<S>(stream: S, mut handler: ErasedIoHandler)
+#[tracing::instrument("upgrade", skip_all, fields(protocol = proto))]
+async fn io_handler_task<S>(proto: String, stream: S, mut handler: ErasedIoHandler)
     where S: Future<Output = io::Result<IoStream>>
 {
     let stream = match stream.await {
         Ok(stream) => stream,
-        Err(e) => return warn_!("Upgrade failed: {e}"),
+        Err(e) => return warn!(error = %e, "i/o upgrade failed"),
     };
 
-    info_!("Upgrade succeeded.");
+    info!("i/o upgrade succeeded");
     if let Err(e) = handler.take().io(stream).await {
         match e.kind() {
-            io::ErrorKind::BrokenPipe => warn!("Upgrade I/O handler was closed."),
-            e => error!("Upgrade I/O handler failed: {e}"),
+            io::ErrorKind::BrokenPipe => warn!("i/o handler closed"),
+            _ => warn!(error = %e, "i/o handler terminated unsuccessfully"),
         }
     }
 }
@@ -121,8 +131,8 @@ impl Rocket<Ignite> {
         }
 
         if cfg!(feature = "http3-preview") {
-            warn!("HTTP/3 cannot start without a valid TCP + TLS configuration.");
-            info_!("Falling back to HTTP/1 + HTTP/2 server.");
+            warn!("HTTP/3 cannot start without a valid TCP + TLS configuration.\n\
+                Falling back to HTTP/1 + HTTP/2 server.");
         }
 
         let rocket = self.into_orbit(vec![endpoint]);

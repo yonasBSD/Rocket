@@ -5,6 +5,7 @@ use crate::{Rocket, Request, Response, Orbit, Config};
 use crate::fairing::{Fairing, Info, Kind};
 use crate::http::{Header, uncased::UncasedStr};
 use crate::shield::*;
+use crate::trace::traceable::*;
 
 /// A [`Fairing`] that injects browser security and privacy headers into all
 /// outgoing responses.
@@ -192,15 +193,32 @@ impl Fairing for Shield {
             && rocket.figment().profile() != Config::DEBUG_PROFILE
             && !self.is_enabled::<Hsts>();
 
-        tracing::info_span!("shield", force_hsts).in_scope(|| {
-            for header in self.policies.values() {
-                info!(name: "header", name = header.name().as_str(), value = header.value());
-            }
+        info_span!("shield" [policies = self.policies.len()] => {
+            self.policies.values().trace_all_info();
 
-            warn!("Detected TLS-enabled liftoff without enabling HSTS.");
-            warn!("Shield has enabled a default HSTS policy.");
-            info!("To remove this warning, configure an HSTS policy.");
-        });
+            if force_hsts {
+                warn!("Detected TLS-enabled liftoff without enabling HSTS.");
+                warn!("Shield has enabled a default HSTS policy.");
+                info!("To remove this warning, configure an HSTS policy.");
+            }
+        })
+
+        // trace::collection_info!("shield", force_hsts => self.polices.values(), {
+        //     warn!("Detected TLS-enabled liftoff without enabling HSTS.");
+        //     warn!("Shield has enabled a default HSTS policy.");
+        //     info!("To remove this warning, configure an HSTS policy.");
+        // });
+
+        // // tracing::info_span!("shield", force_hsts).in_scope(|| {
+        // //     self.polices.values().trace();
+        // //     for header in self.policies.values() {
+        // //         info!(name: "header", name = header.name().as_str(), value = header.value());
+        // //     }
+        //
+        //     warn!("Detected TLS-enabled liftoff without enabling HSTS.");
+        //     warn!("Shield has enabled a default HSTS policy.");
+        //     info!("To remove this warning, configure an HSTS policy.");
+        // });
     }
 
     async fn on_response<'r>(&self, _: &'r Request<'_>, response: &mut Response<'r>) {
