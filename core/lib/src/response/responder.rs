@@ -542,7 +542,10 @@ impl<'r> Responder<'r, 'static> for Status {
                 Response::build().status(self).ok()
             }
             _ => {
-                error_!("Invalid status used as responder: {}.", self);
+                error!(status = self.code,
+                    "invalid status used as responder\n\
+                    status must be one of 100, 200..=205, 400..=599");
+
                 Err(Status::InternalServerError)
             }
         }

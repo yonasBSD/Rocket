@@ -48,7 +48,7 @@ impl Fairing for TemplateFairing {
         if let Some(ctxt) = Context::initialize(&path, &self.callback) {
             Ok(rocket.manage(ContextManager::new(ctxt)))
         } else {
-            error_!("Template initialization failed. Aborting launch.");
+            error!("Template initialization failed. Aborting launch.");
             Err(rocket)
         }
     }
@@ -57,7 +57,7 @@ impl Fairing for TemplateFairing {
         let cm = rocket.state::<ContextManager>()
             .expect("Template ContextManager registered in on_ignite");
 
-        info_span!("templating" [icon = "📐"] => {
+        info_span!("templating" => {
             info!(directory = %Source::from(&*cm.context().root));
             info!(engines = ?Engines::ENABLED_EXTENSIONS);
         });

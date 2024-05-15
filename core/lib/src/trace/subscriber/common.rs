@@ -103,15 +103,15 @@ impl<K: private::FmtKind> RocketFmt<K> {
         }
     }
 
-    pub fn has_message(&self, meta: &Metadata<'_>) -> bool {
+    pub(crate) fn has_message(&self, meta: &Metadata<'_>) -> bool {
         meta.fields().field("message").is_some()
     }
 
-    pub fn has_data_fields(&self, meta: &Metadata<'_>) -> bool {
+    pub(crate) fn has_data_fields(&self, meta: &Metadata<'_>) -> bool {
         meta.fields().iter().any(|f| f.name() != "message")
     }
 
-    pub fn message<'a, F: RecordFields + 'a>(&self,
+    pub(crate) fn message<'a, F: RecordFields + 'a>(&self,
         init_prefix: &'a dyn fmt::Display,
         cont_prefix: &'a dyn fmt::Display,
         meta: &'a Metadata<'_>,
@@ -142,9 +142,11 @@ impl<K: private::FmtKind> RocketFmt<K> {
         })
     }
 
-    pub fn compact_fields<'a, F>(&self, meta: &'a Metadata<'_>, data: F) -> impl fmt::Display + 'a
-        where F: RecordFields + 'a
-    {
+    pub(crate) fn compact_fields<'a, F: RecordFields + 'a>(
+        &self,
+        meta: &'a Metadata<'_>,
+        data: F
+    ) -> impl fmt::Display + 'a {
         let key_style = self.style(meta).bold();
         let val_style = self.style(meta).primary();
 
@@ -163,7 +165,7 @@ impl<K: private::FmtKind> RocketFmt<K> {
         })
     }
 
-    pub fn print<F: RecordFields>(
+    pub(crate) fn print<F: RecordFields>(
         &self,
         prefix: &dyn fmt::Display,
         cont_prefix: &dyn fmt::Display,

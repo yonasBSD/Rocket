@@ -4,14 +4,14 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::any::Any;
 use std::future::Future;
+use std::panic::Location;
 
-use yansi::Paint;
 use either::Either;
 use figment::{Figment, Provider};
 use futures::TryFutureExt;
 
 use crate::shutdown::{Stages, Shutdown};
-use crate::trace::traceable::{Traceable, TraceableCollection};
+use crate::trace::{Traceable, TraceableCollection};
 use crate::{sentinel, shield::Shield, Catcher, Config, Route};
 use crate::listener::{Bind, DefaultListener, Endpoint, Listener};
 use crate::router::Router;
@@ -21,7 +21,6 @@ use crate::phase::{Stateful, StateRef, State};
 use crate::http::uri::Origin;
 use crate::http::ext::IntoOwned;
 use crate::error::{Error, ErrorKind};
-// use crate::log::PaintExt;
 
 /// The application server itself.
 ///
@@ -248,20 +247,18 @@ impl Rocket<Build> {
               B::Error: fmt::Display,
               M: Fn(&Origin<'a>, T) -> T,
               F: Fn(&mut Self, T),
-              T: Clone + fmt::Display,
+              T: Clone + Traceable,
     {
         let mut base = match base.clone().try_into() {
             Ok(origin) => origin.into_owned(),
             Err(e) => {
-                error!("invalid {} base: {}", kind, Paint::white(&base));
-                error_!("{}", e);
-                info_!("{} {}", "in".primary(), std::panic::Location::caller());
+                error!(%base, location = %Location::caller(), "invalid {kind} base uri: {e}");
                 panic!("aborting due to {} base error", kind);
             }
         };
 
         if base.query().is_some() {
-            warn!("query in {} base '{}' is ignored", kind, Paint::white(&base));
+            warn!(%base, location = %Location::caller(), "query in {kind} base is ignored");
             base.clear_query();
         }
 
@@ -760,9 +757,11 @@ impl Rocket<Orbit> {
         rocket.fairings.handle_liftoff(rocket).await;
 
         if !crate::running_within_rocket_async_rt().await {
-            warn!("Rocket is executing inside of a custom runtime.");
-            info_!("Rocket's runtime is enabled via `#[rocket::main]` or `#[launch]`.");
-            info_!("Forced shutdown is disabled. Runtime settings may be suboptimal.");
+            warn!(
+                "Rocket is executing inside of a custom runtime.\n\
+                Rocket's runtime is enabled via `#[rocket::main]` or `#[launch]`\n\
+                Forced shutdown is disabled. Runtime settings may be suboptimal."
+            );
         }
 
         tracing::info!(name: "liftoff", endpoint = %rocket.endpoints[0]);

@@ -204,9 +204,8 @@ impl<'a> FromParam<'a> for String {
     #[inline(always)]
     fn from_param(param: &'a str) -> Result<String, Self::Error> {
         #[cfg(debug_assertions)] {
-            let loc = std::panic::Location::caller();
-            warn_!("Note: Using `String` as a parameter type is inefficient. Use `&str` instead.");
-            info_!("`String` is used a parameter guard in {}:{}.", loc.file(), loc.line());
+            let location = std::panic::Location::caller();
+            warn!(%location, "`String` as a parameter is inefficient. Use `&str` instead.");
         }
 
         if param.is_empty() {

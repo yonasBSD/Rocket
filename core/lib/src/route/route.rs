@@ -1,8 +1,6 @@
 use std::fmt;
 use std::borrow::Cow;
 
-use yansi::Paint;
-
 use crate::http::{uri, Method, MediaType};
 use crate::route::{Handler, RouteUri, BoxFuture};
 use crate::sentinel::Sentry;
@@ -340,27 +338,6 @@ impl Route {
         let base = mapper(self.uri.base);
         self.uri = RouteUri::try_new(&base, &self.uri.unmounted_origin.to_string())?;
         Ok(self)
-    }
-}
-
-impl fmt::Display for Route {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref n) = self.name {
-            write!(f, "{}{}{} ", "(".cyan(), n.primary(), ")".cyan())?;
-        }
-
-        write!(f, "{} ", self.method.green())?;
-        self.uri.color_fmt(f)?;
-
-        if self.rank > 1 {
-            write!(f, " [{}]", self.rank.primary().bold())?;
-        }
-
-        if let Some(ref format) = self.format {
-            write!(f, " {}", format.yellow())?;
-        }
-
-        Ok(())
     }
 }
 

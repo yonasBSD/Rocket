@@ -122,7 +122,6 @@ pub use figment;
 pub use time;
 pub use tracing;
 
-#[doc(hidden)]
 #[macro_use]
 pub mod trace;
 #[macro_use]

@@ -1,5 +1,3 @@
-use rocket::fairing::AdHoc;
-
 #[macro_use] extern crate rocket;
 
 #[cfg(test)] mod tests;

@@ -61,10 +61,10 @@ impl RequestId {
 
 impl RequestIdLayer {
     thread_local! {
-        pub static CURRENT_REQUEST_ID: Cell<Option<RequestId>> = Cell::new(None);
+        static CURRENT_REQUEST_ID: Cell<Option<RequestId>> = Cell::new(None);
     }
 
-    fn current() -> Option<RequestId> {
+    pub fn current() -> Option<RequestId> {
         Self::CURRENT_REQUEST_ID.get()
     }
 }

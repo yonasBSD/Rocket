@@ -151,6 +151,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RocketFmt<Pretty> {
                 "catchers" => "🚧 ",
                 "fairings" => "📦 ",
                 "shield" => "🛡️ ",
+                "templating" => "📐 ",
                 "request" => "● ",
                 _ => "",
             };

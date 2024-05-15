@@ -73,15 +73,12 @@ impl<T: Resolver> fairing::Fairing for Fairing<T> {
     }
 
     async fn on_ignite(&self, rocket: Rocket<Build>) -> fairing::Result {
-        use yansi::Paint;
-
         let result = T::init(&rocket).await;
         match result {
             Ok(resolver) => Ok(rocket.manage(Arc::new(resolver) as Arc<dyn Resolver>)),
             Err(e) => {
-                let name = std::any::type_name::<T>();
-                error!("TLS resolver {} failed to initialize.", name.primary().bold());
-                error_!("{e}");
+                let type_name = std::any::type_name::<T>();
+                error!(type_name, reason = %e, "TLS resolver failed to initialize");
                 Err(rocket)
             }
         }

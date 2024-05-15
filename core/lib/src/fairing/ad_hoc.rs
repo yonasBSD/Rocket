@@ -387,10 +387,10 @@ impl AdHoc {
                 // This allows incremental compatibility updates. Otherwise,
                 // rewrite the request URI to remove the `/`.
                 if !self.routes(req.rocket()).iter().any(|r| r.matches(req)) {
-                    let normal = req.uri().clone().into_normalized_nontrailing();
-                    warn!("Incoming request URI was normalized for compatibility.");
-                    info_!("{} -> {}", req.uri(), normal);
-                    req.set_uri(normal);
+                    let normalized = req.uri().clone().into_normalized_nontrailing();
+                    warn!(original = %req.uri(), %normalized,
+                        "incoming request URI normalized for compatibility");
+                    req.set_uri(normalized);
                 }
             }
         }

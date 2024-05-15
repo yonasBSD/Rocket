@@ -105,8 +105,10 @@ fn query_decls(route: &Route) -> Option<TokenStream> {
             )*
 
             if !__e.is_empty() {
-                ::rocket::warn_!("Query string failed to match route declaration.");
-                for _err in __e { ::rocket::warn_!("{}", _err); }
+                ::rocket::info_span!("query string failed to match route declaration" => {
+                    for _err in __e { ::rocket::info!("{_err}"); }
+                });
+
                 return #Outcome::Forward((#__data, #Status::UnprocessableEntity));
             }
 
@@ -125,11 +127,11 @@ fn request_guard_decl(guard: &Guard) -> TokenStream {
         let #ident: #ty = match <#ty as #FromRequest>::from_request(#__req).await {
             #Outcome::Success(__v) => __v,
             #Outcome::Forward(__e) => {
-                ::rocket::warn_!("Request guard `{}` is forwarding.", stringify!(#ty));
+                ::rocket::info!(type_name = stringify!(#ty), "guard forwarding");
                 return #Outcome::Forward((#__data, __e));
             },
             #Outcome::Error((__c, __e)) => {
-                ::rocket::warn_!("Request guard `{}` failed: {:?}.", stringify!(#ty), __e);
+                ::rocket::info!(type_name = stringify!(#ty), "guard failed: {__e:?}");
                 return #Outcome::Error(__c);
             }
         };
@@ -145,8 +147,9 @@ fn param_guard_decl(guard: &Guard) -> TokenStream {
 
     // Returned when a dynamic parameter fails to parse.
     let parse_error = quote!({
-        ::rocket::warn_!("Parameter guard `{}: {}` is forwarding: {:?}.",
-            #name, stringify!(#ty), __error);
+        ::rocket::info!(name: "forward",
+            reason = %__error, parameter = #name, "type" = stringify!(#ty),
+            "parameter forwarding");
 
         #Outcome::Forward((#__data, #Status::UnprocessableEntity))
     });
@@ -161,9 +164,11 @@ fn param_guard_decl(guard: &Guard) -> TokenStream {
                     #_Err(__error) => return #parse_error,
                 },
                 #_None => {
-                    ::rocket::error_!("Internal invariant broken: dyn param {} not found.", #i);
-                    ::rocket::error_!("Please report this to the Rocket issue tracker.");
-                    ::rocket::error_!("https://github.com/rwf2/Rocket/issues");
+                    ::rocket::error!(
+                        "Internal invariant broken: dyn param {} not found.\n\
+                        Please report this to the Rocket issue tracker.\n\
+                        https://github.com/rwf2/Rocket/issues", #i);
+
                     return #Outcome::Forward((#__data, #Status::InternalServerError));
                 }
             }
@@ -188,11 +193,11 @@ fn data_guard_decl(guard: &Guard) -> TokenStream {
         let #ident: #ty = match <#ty as #FromData>::from_data(#__req, #__data).await {
             #Outcome::Success(__d) => __d,
             #Outcome::Forward((__d, __e)) => {
-                ::rocket::warn_!("Data guard `{}` is forwarding.", stringify!(#ty));
+                ::rocket::info!(type_name = stringify!(#ty), "data guard forwarding");
                 return #Outcome::Forward((__d, __e));
             }
             #Outcome::Error((__c, __e)) => {
-                ::rocket::warn_!("Data guard `{}` failed: {:?}.", stringify!(#ty), __e);
+                ::rocket::info!(type_name = stringify!(#ty), "data guard failed: {__e:?}");
                 return #Outcome::Error(__c);
             }
         };

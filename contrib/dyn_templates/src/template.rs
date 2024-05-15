@@ -7,8 +7,8 @@ use rocket::fairing::Fairing;
 use rocket::response::{self, Responder};
 use rocket::http::{ContentType, Status};
 use rocket::figment::{value::Value, error::Error};
+use rocket::trace::Traceable;
 use rocket::serde::Serialize;
-use rocket::yansi::Paint;
 
 use crate::Engines;
 use crate::fairing::TemplateFairing;
@@ -218,12 +218,15 @@ impl Template {
     pub fn show<S, C>(rocket: &Rocket<Orbit>, name: S, context: C) -> Option<String>
         where S: Into<Cow<'static, str>>, C: Serialize
     {
-        let ctxt = rocket.state::<ContextManager>().map(ContextManager::context).or_else(|| {
-            warn!("Uninitialized template context: missing fairing.");
-            info!("To use templates, you must attach `Template::fairing()`.");
-            info!("See the `Template` documentation for more information.");
-            None
-        })?;
+        let ctxt = rocket.state::<ContextManager>()
+            .map(ContextManager::context)
+            .or_else(|| {
+                error!("Uninitialized template context: missing fairing.\n\
+                    To use templates, you must attach `Template::fairing()`.\n\
+                    See the `Template` documentation for more information.");
+
+                None
+            })?;
 
         Template::render(name, context).finalize(&ctxt).ok().map(|v| v.1)
     }
@@ -233,22 +236,24 @@ impl Template {
     /// `Template::show()`.
     #[inline(always)]
     pub(crate) fn finalize(self, ctxt: &Context) -> Result<(ContentType, String), Status> {
-        let name = &*self.name;
-        let info = ctxt.templates.get(name).ok_or_else(|| {
+        let template = &*self.name;
+        let info = ctxt.templates.get(template).ok_or_else(|| {
             let ts: Vec<_> = ctxt.templates.keys().map(|s| s.as_str()).collect();
-            error_!("Template '{}' does not exist.", name);
-            info_!("Known templates: {}.", ts.join(", "));
-            info_!("Searched in {:?}.", ctxt.root);
+            error!(
+                %template, search_path = %ctxt.root.display(), known_templates = ?ts,
+                "requested template not found"
+            );
+
             Status::InternalServerError
         })?;
 
         let value = self.value.map_err(|e| {
-            error_!("Template context failed to serialize: {}.", e);
+            error_span!("template context failed to serialize" => e.trace_error());
             Status::InternalServerError
         })?;
 
-        let string = ctxt.engines.render(name, info, value).ok_or_else(|| {
-            error_!("Template '{}' failed to render.", name);
+        let string = ctxt.engines.render(template, info, value).ok_or_else(|| {
+            error!(template, "template failed to render");
             Status::InternalServerError
         })?;
 
@@ -264,9 +269,11 @@ impl<'r> Responder<'r, 'static> for Template {
         let ctxt = req.rocket()
             .state::<ContextManager>()
             .ok_or_else(|| {
-                error_!("Uninitialized template context: missing fairing.");
-                info_!("To use templates, you must attach `Template::fairing()`.");
-                info_!("See the `Template` documentation for more information.");
+                error!(
+                    "uninitialized template context: missing `Template::fairing()`.\n\
+                    To use templates, you must attach `Template::fairing()`."
+                );
+
                 Status::InternalServerError
             })?;
 
@@ -277,11 +284,11 @@ impl<'r> Responder<'r, 'static> for Template {
 impl Sentinel for Template {
     fn abort(rocket: &Rocket<Ignite>) -> bool {
         if rocket.state::<ContextManager>().is_none() {
-            let template = "Template".primary().bold();
-            let fairing = "Template::fairing()".primary().bold();
-            error!("returning `{}` responder without attaching `{}`.", template, fairing);
-            info_!("To use or query templates, you must attach `{}`.", fairing);
-            info_!("See the `Template` documentation for more information.");
+            error!(
+                "Missing `Template::fairing()`.\n\
+                 To use templates, you must attach `Template::fairing()`."
+            );
+
             return true;
         }
 

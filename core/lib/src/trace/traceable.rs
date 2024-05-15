@@ -142,7 +142,7 @@ impl Traceable for Route {
             format = self.format.as_ref().map(display),
         }
 
-        event! { Level::DEBUG, "route",
+        event! { Level::DEBUG, "sentinels",
             route = self.name.as_ref().map(|n| &**n),
             sentinels = %Formatter(|f| {
                 f.debug_set()
@@ -255,8 +255,11 @@ impl Traceable for Error {
 
 impl Traceable for Sentry {
     fn trace(&self, level: Level) {
-        let (file, line, column) = self.location;
-        event!(level, "sentry", type_name = self.type_name, file, line, column);
+        let (file, line, col) = self.location;
+        event!(level, "sentry",
+            type_name = self.type_name,
+            location = %Formatter(|f| write!(f, "{file}:{line}:{col}"))
+        );
     }
 }
 
@@ -325,7 +328,7 @@ impl Traceable for ErrorKind {
                 span.in_scope(|| fairings.iter().trace_all(level));
             },
             SentinelAborts(sentries) => {
-                let span = span!(level, "sentries", "sentry abort");
+                let span = span!(level, "sentries", "sentry launch abort");
                 span.in_scope(|| sentries.iter().trace_all(level));
             }
             InsecureSecretKey(profile) => event!(level, "insecure_key", %profile,

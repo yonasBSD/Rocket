@@ -10,7 +10,7 @@ use crate::config::{ShutdownConfig, Ident, CliColors};
 use crate::request::{self, Request, FromRequest};
 use crate::http::uncased::Uncased;
 use crate::data::Limits;
-use crate::trace::traceable::Traceable;
+use crate::trace::Traceable;
 
 /// Rocket server configuration.
 ///

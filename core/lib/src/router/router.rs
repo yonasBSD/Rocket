@@ -580,10 +580,10 @@ mod test {
                 let req_status = Status::from_code(req.0).expect("valid status");
                 let catcher = catcher(&router, req_status, req.1).expect("some catcher");
                 assert_eq!(catcher.code, expected.0,
-                    "\nmatched {}, expected {:?} for req {:?}", catcher, expected, req);
+                    "\nmatched {:?}, expected {:?} for req {:?}", catcher, expected, req);
 
                 assert_eq!(catcher.base.path(), expected.1,
-                    "\nmatched {}, expected {:?} for req {:?}", catcher, expected, req);
+                    "\nmatched {:?}, expected {:?} for req {:?}", catcher, expected, req);
             }
         })
     }

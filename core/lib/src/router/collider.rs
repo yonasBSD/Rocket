@@ -226,7 +226,7 @@ mod tests {
             let (a, b) = (dummy_route($ranked, $m1, $p1), dummy_route($ranked, $m2, $p2));
             assert! {
                 a.collides_with(&b),
-                "\nroutes failed to collide:\n{} does not collide with {}\n", a, b
+                "\nroutes failed to collide:\n{:?} does not collide with {:?}\n", a, b
             }
         };
         (ranked $($t:tt)+) => (assert_collision!(true, $($t)+));
@@ -239,7 +239,7 @@ mod tests {
             let (a, b) = (dummy_route($ranked, $m1, $p1), dummy_route($ranked, $m2, $p2));
             assert! {
                 !a.collides_with(&b),
-                "\nunexpected collision:\n{} collides with {}\n", a, b
+                "\nunexpected collision:\n{:?} collides with {:?}\n", a, b
             }
         };
         (ranked $($t:tt)+) => (assert_no_collision!(true, $($t)+));

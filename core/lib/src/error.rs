@@ -7,7 +7,7 @@ use std::sync::Arc;
 use figment::Profile;
 
 use crate::listener::Endpoint;
-use crate::trace::traceable::Traceable;
+use crate::trace::Traceable;
 use crate::{Ignite, Orbit, Phase, Rocket};
 
 /// An error that occurs during launch.
@@ -170,46 +170,48 @@ impl fmt::Display for Empty {
 
 impl StdError for Empty { }
 
+struct ServerError<'a>(&'a (dyn StdError + 'static));
+
+impl fmt::Display for ServerError<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let error = &self.0;
+        if let Some(e) = error.downcast_ref::<hyper::Error>() {
+            write!(f, "request failed: {e}")?;
+        } else if let Some(e) = error.downcast_ref::<io::Error>() {
+            write!(f, "connection error: ")?;
+
+            match e.kind() {
+                io::ErrorKind::NotConnected => write!(f, "remote disconnected")?,
+                io::ErrorKind::UnexpectedEof => write!(f, "remote sent early eof")?,
+                io::ErrorKind::ConnectionReset
+                | io::ErrorKind::ConnectionAborted => write!(f, "terminated by remote")?,
+                _ => write!(f, "{e}")?,
+            }
+        } else {
+            write!(f, "http server error: {error}")?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Log an error that occurs during request processing
 #[track_caller]
 pub(crate) fn log_server_error(error: &(dyn StdError + 'static)) {
-    struct ServerError<'a>(&'a (dyn StdError + 'static));
-
-    impl fmt::Display for ServerError<'_> {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let error = &self.0;
-            if let Some(e) = error.downcast_ref::<hyper::Error>() {
-                write!(f, "request failed: {e}")?;
-            } else if let Some(e) = error.downcast_ref::<io::Error>() {
-                write!(f, "connection error: ")?;
-
-                match e.kind() {
-                    io::ErrorKind::NotConnected => write!(f, "remote disconnected")?,
-                    io::ErrorKind::UnexpectedEof => write!(f, "remote sent early eof")?,
-                    io::ErrorKind::ConnectionReset
-                    | io::ErrorKind::ConnectionAborted => write!(f, "terminated by remote")?,
-                    _ => write!(f, "{e}")?,
-                }
-            } else {
-                write!(f, "http server error: {error}")?;
-            }
-
-            Ok(())
-        }
-    }
-
     let mut error: &(dyn StdError + 'static) = error;
     if error.downcast_ref::<hyper::Error>().is_some() {
-        warn!("{}", ServerError(error));
-        while let Some(source) = error.source() {
-            error = source;
-            warn_!("{}", ServerError(error));
-        }
+        warn_span!("minor server error" ["{}", ServerError(error)] => {
+            while let Some(source) = error.source() {
+                error = source;
+                warn!("{}", ServerError(error));
+            }
+        });
     } else {
-        error!("{}", ServerError(error));
-        while let Some(source) = error.source() {
-            error = source;
-            error_!("{}", ServerError(error));
-        }
+        error_span!("server error" ["{}", ServerError(error)] => {
+            while let Some(source) = error.source() {
+                error = source;
+                error!("{}", ServerError(error));
+            }
+        });
     }
 }

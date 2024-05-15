@@ -1,11 +1,18 @@
 #[macro_use]
-pub mod macros;
-#[cfg(feature = "trace")]
-pub mod subscriber;
-pub mod level;
-pub mod traceable;
+mod macros;
+mod traceable;
 
-pub use traceable::Traceable;
+#[cfg(feature = "trace")]
+#[cfg_attr(nightly, doc(cfg(feature = "trace")))]
+pub mod subscriber;
+
+pub(crate) mod level;
+
+#[doc(inline)]
+pub use traceable::{Traceable, TraceableCollection};
+
+#[doc(inline)]
+pub use macros::*;
 
 pub fn init<'a, T: Into<Option<&'a crate::Config>>>(_config: T) {
     #[cfg(all(feature = "trace", debug_assertions))]

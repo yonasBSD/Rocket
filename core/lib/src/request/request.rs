@@ -380,7 +380,7 @@ impl<'r> Request<'r> {
             .get_one(ip_header)
             .and_then(|ip| {
                 ip.parse()
-                    .map_err(|_| warn_!("'{}' header is malformed: {}", ip_header, ip))
+                    .map_err(|_| warn!(value = ip, "'{ip_header}' header is malformed"))
                     .ok()
             })
     }
@@ -1158,15 +1158,14 @@ impl<'r> Request<'r> {
         }
 
         // Set the rest of the headers. This is rather unfortunate and slow.
-        for (name, value) in hyper.headers.iter() {
+        for (header, value) in hyper.headers.iter() {
             // FIXME: This is rather unfortunate. Header values needn't be UTF8.
             let Ok(value) = std::str::from_utf8(value.as_bytes()) else {
-                warn!("Header '{}' contains invalid UTF-8", name);
-                warn_!("Rocket only supports UTF-8 header values. Dropping header.");
+                warn!(%header, "dropping header with invalid UTF-8");
                 continue;
             };
 
-            request.add_header(Header::new(name.as_str(), value));
+            request.add_header(Header::new(header.as_str(), value));
         }
 
         match request.errors.is_empty() {

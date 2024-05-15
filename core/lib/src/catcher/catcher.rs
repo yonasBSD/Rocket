@@ -8,8 +8,6 @@ use crate::request::Request;
 use crate::http::{Status, ContentType, uri};
 use crate::catcher::{Handler, BoxFuture};
 
-use yansi::Paint;
-
 /// An error catching route.
 ///
 /// Catchers are routes that run when errors are produced by the application.
@@ -339,21 +337,6 @@ impl From<StaticInfo> for Catcher {
         let mut catcher = Catcher::new(info.code, info.handler);
         catcher.name = Some(info.name.into());
         catcher
-    }
-}
-
-impl fmt::Display for Catcher {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref n) = self.name {
-            write!(f, "{}{}{} ", "(".cyan(), n.primary(), ")".cyan())?;
-        }
-
-        write!(f, "{} ", self.base.path().green())?;
-
-        match self.code {
-            Some(code) => write!(f, "{}", code.blue()),
-            None => write!(f, "{}", "default".blue()),
-        }
     }
 }
 
