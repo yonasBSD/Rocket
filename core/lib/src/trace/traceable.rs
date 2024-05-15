@@ -1,6 +1,9 @@
-use crate::fairing::Fairing;
-use crate::{route, Catcher, Config, Response, Route};
+use std::error::Error as StdError;
+
+use crate::sentinel::Sentry;
 use crate::util::Formatter;
+use crate::{route, Catcher, Config, Error, Request, Response, Route};
+use crate::error::ErrorKind;
 
 use figment::Figment;
 use rocket::http::Header;
@@ -131,8 +134,8 @@ impl Traceable for Route {
     fn trace(&self, level: Level) {
         event! { level, "route",
             name = self.name.as_ref().map(|n| &**n),
-            method = %self.method,
             rank = self.rank,
+            method = %self.method,
             uri = %self.uri,
             uri.base = %self.uri.base(),
             uri.unmounted = %self.uri.unmounted(),
@@ -154,7 +157,7 @@ impl Traceable for Catcher {
     fn trace(&self, level: Level) {
         event! { level, "catcher",
             name = self.name.as_ref().map(|n| &**n),
-            status = %Formatter(|f| match self.code {
+            code = %Formatter(|f| match self.code {
                 Some(code) => write!(f, "{}", code),
                 None => write!(f, "default"),
             }),
@@ -164,9 +167,15 @@ impl Traceable for Catcher {
     }
 }
 
-impl Traceable for &dyn Fairing {
+impl Traceable for &dyn crate::fairing::Fairing {
     fn trace(&self, level: Level) {
-        event!(level, "fairing", name = self.info().name, kind = %self.info().kind)
+        self.info().trace(level)
+    }
+}
+
+impl Traceable for crate::fairing::Info {
+    fn trace(&self, level: Level) {
+        event!(level, "fairing", name = self.name, kind = %self.kind)
     }
 }
 
@@ -176,17 +185,17 @@ impl Traceable for figment::error::Kind {
 
         match self {
             Message(message) => error!(message),
-            InvalidType(actual, expected) => error!(name: "invalid type", %actual, expected),
-            InvalidValue(actual, expected) => error!(name: "invalid value", %actual, expected),
-            InvalidLength(actual, expected) => error!(name: "invalid length", %actual, expected),
-            UnknownVariant(actual, v) => error!(name: "unknown variant", actual, expected = %V(v)),
-            UnknownField(actual, v) => error!(name: "unknown field", actual, expected = %V(v)),
-            UnsupportedKey(actual, v) => error!(name: "unsupported key", %actual, expected = &**v),
-            MissingField(value) => error!(name: "missing field", value = &**value),
-            DuplicateField(value) => error!(name: "duplicate field", value),
-            ISizeOutOfRange(value) => error!(name: "out of range signed integer", value),
-            USizeOutOfRange(value) => error!(name: "out of range unsigned integer", value),
-            Unsupported(value) => error!(name: "unsupported type", %value),
+            InvalidType(actual, expected) => error!(%actual, expected, "invalid type"),
+            InvalidValue(actual, expected) => error!(%actual, expected, "invalid value"),
+            InvalidLength(actual, expected) => error!(%actual, expected, "invalid length"),
+            UnknownVariant(actual, v) => error!(actual, expected = %V(v), "unknown variant"),
+            UnknownField(actual, v) => error!(actual, expected = %V(v), "unknown field"),
+            UnsupportedKey(actual, v) => error!(%actual, expected = &**v, "unsupported key"),
+            MissingField(value) => error!(value = &**value, "missing field"),
+            DuplicateField(value) => error!(value, "duplicate field"),
+            ISizeOutOfRange(value) => error!(value, "out of range signed integer"),
+            USizeOutOfRange(value) => error!(value, "out of range unsigned integer"),
+            Unsupported(value) => error!(%value, "unsupported type"),
         }
     }
 }
@@ -235,5 +244,96 @@ impl Traceable for route::Outcome<'_> {
 impl Traceable for Response<'_> {
     fn trace(&self, level: Level) {
         event!(level, "response", status = self.status().code);
+    }
+}
+
+impl Traceable for Error {
+    fn trace(&self, level: Level) {
+        self.kind.trace(level);
+    }
+}
+
+impl Traceable for Sentry {
+    fn trace(&self, level: Level) {
+        let (file, line, column) = self.location;
+        event!(level, "sentry", type_name = self.type_name, file, line, column);
+    }
+}
+
+impl Traceable for Request<'_> {
+    fn trace(&self, level: Level) {
+        event!(level, "request", method = %self.method(), uri = %self.uri())
+    }
+}
+
+impl Traceable for ErrorKind {
+    fn trace(&self, level: Level) {
+        use ErrorKind::*;
+
+        fn try_downcast<'a, T>(error: &'a (dyn StdError + 'static)) -> Option<&'a T>
+            where T: StdError + 'static
+        {
+            error.downcast_ref().or_else(|| error.source()?.downcast_ref())
+        }
+
+        match self {
+            Bind(endpoint, error) => {
+                if let Some(e) = try_downcast::<crate::Error>(&**error) {
+                    e.trace(level);
+                } else if let Some(e) = try_downcast::<figment::Error>(&**error) {
+                    e.trace(level);
+                } else {
+                    event!(level, "error::bind",
+                        ?error,
+                        endpoint = endpoint.as_ref().map(display),
+                        "binding to network interface failed"
+                    )
+                }
+            }
+            Io(reason) => event!(level, "error::io", %reason, "i/o error"),
+            Config(error) => error.trace(level),
+            Collisions(collisions) => {
+                let routes = collisions.routes.len();
+                let catchers = collisions.catchers.len();
+
+                span!(level, "collision",
+                    route.pairs = routes,
+                    catcher.pairs = catchers,
+                    "colliding items detected"
+                ).in_scope(|| {
+                    let routes = &collisions.routes;
+                    for (a, b) in routes {
+                        span!(level, "colliding route pair").in_scope(|| {
+                            a.trace(level);
+                            b.trace(level);
+                        })
+                    }
+
+                    let catchers = &collisions.catchers;
+                    for (a, b) in catchers {
+                        span!(level, "colliding catcher pair").in_scope(|| {
+                            a.trace(level);
+                            b.trace(level);
+                        })
+                    }
+
+                    span!(Level::INFO, "collisions can usually be resolved by ranking items");
+                });
+            }
+            FailedFairings(fairings) => {
+                let span = span!(level, "fairings", count = fairings.len(), "ignition failure");
+                span.in_scope(|| fairings.iter().trace_all(level));
+            },
+            SentinelAborts(sentries) => {
+                let span = span!(level, "sentries", "sentry abort");
+                span.in_scope(|| sentries.iter().trace_all(level));
+            }
+            InsecureSecretKey(profile) => event!(level, "insecure_key", %profile,
+                "secrets enabled in a non-debug profile without a stable `secret_key`\n\
+                disable the `secrets` feature or configure a `secret_key`"
+            ),
+            Liftoff(_, reason) => event!(level, "panic", %reason, "liftoff fairing failed"),
+            Shutdown(_) => event!(level, "shutdown", "shutdown failed"),
+        }
     }
 }

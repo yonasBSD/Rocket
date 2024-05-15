@@ -125,8 +125,8 @@ impl Rocket<Ignite> {
             let http12 = tokio::task::spawn(rocket.clone().serve12(listener));
             let http3 = tokio::task::spawn(rocket.clone().serve3(h3listener));
             let (r1, r2) = tokio::join!(http12, http3);
-            r1.map_err(|e| ErrorKind::Liftoff(Err(rocket.clone()), Box::new(e)))??;
-            r2.map_err(|e| ErrorKind::Liftoff(Err(rocket.clone()), Box::new(e)))??;
+            r1.map_err(|e| ErrorKind::Liftoff(Err(rocket.clone()), e))??;
+            r2.map_err(|e| ErrorKind::Liftoff(Err(rocket.clone()), e))??;
             return Ok(rocket);
         }
 

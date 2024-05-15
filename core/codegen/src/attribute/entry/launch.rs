@@ -4,7 +4,7 @@ use proc_macro2::{TokenStream, Span};
 
 use super::EntryAttr;
 use crate::attribute::suppress::Lint;
-use crate::exports::mixed;
+use crate::exports::{mixed, _error, _ExitCode};
 
 /// `#[rocket::launch]`: generates a `main` function that calls the attributed
 /// function to generate a `Rocket` instance. Then calls `.launch()` on the
@@ -106,14 +106,14 @@ impl EntryAttr for Launch {
 
         let (vis, mut sig) = (&f.vis, f.sig.clone());
         sig.ident = syn::Ident::new("main", sig.ident.span());
-        sig.output = syn::ReturnType::Default;
+        sig.output = syn::parse_quote!(-> #_ExitCode);
         sig.asyncness = None;
 
         Ok(quote_spanned!(block.span() =>
             #[allow(dead_code)] #f
 
             #vis #sig {
-                let _ = ::rocket::async_main(#launch);
+                #_error::Error::report(::rocket::async_main(#launch))
             }
         ))
     }

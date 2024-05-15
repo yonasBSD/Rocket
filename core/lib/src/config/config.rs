@@ -433,7 +433,7 @@ pub fn bail_with_config_error<T>(error: figment::Error) -> T {
 }
 
 #[doc(hidden)]
-// FIXME: Remove this funtion.
+// FIXME: Remove this function.
 pub fn pretty_print_error(error: figment::Error) {
     error.trace_error()
 }

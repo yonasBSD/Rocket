@@ -5,7 +5,6 @@ use std::borrow::Cow;
 use std::future::Future;
 use std::net::IpAddr;
 
-use yansi::Paint;
 use state::{TypeMap, InitCell};
 use futures::future::BoxFuture;
 use ref_swap::OptionRefSwap;
@@ -1201,22 +1200,5 @@ impl fmt::Debug for Request<'_> {
             .field("remote", &self.remote())
             .field("cookies", &self.cookies())
             .finish()
-    }
-}
-
-// FIXME: Remov me to identify dependent `TRACE` statements.
-impl fmt::Display for Request<'_> {
-    /// Pretty prints a Request. Primarily used by Rocket's logging.
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.method().green(), self.uri.blue())?;
-
-        // Print the requests media type when the route specifies a format.
-        if let Some(mime) = self.format() {
-            if !mime.is_any() {
-                write!(f, " {}/{}", mime.top().yellow().linger(), mime.sub().resetting())?;
-            }
-        }
-
-        Ok(())
     }
 }

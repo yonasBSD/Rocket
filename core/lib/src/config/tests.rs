@@ -340,24 +340,22 @@ fn test_precedence() {
 
 #[test]
 #[cfg(feature = "secrets")]
-#[should_panic]
 fn test_err_on_non_debug_and_no_secret_key() {
     figment::Jail::expect_with(|jail| {
         jail.set_env("ROCKET_PROFILE", "release");
         let rocket = crate::custom(Config::figment());
-        let _result = crate::local::blocking::Client::untracked(rocket);
+        crate::local::blocking::Client::untracked(rocket).expect_err("release secret key");
         Ok(())
     });
 }
 
 #[test]
 #[cfg(feature = "secrets")]
-#[should_panic]
 fn test_err_on_non_debug2_and_no_secret_key() {
     figment::Jail::expect_with(|jail| {
         jail.set_env("ROCKET_PROFILE", "boop");
         let rocket = crate::custom(Config::figment());
-        let _result = crate::local::blocking::Client::tracked(rocket);
+        crate::local::blocking::Client::tracked(rocket).expect_err("boop secret key");
         Ok(())
     });
 }

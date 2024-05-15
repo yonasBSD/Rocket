@@ -1,3 +1,5 @@
+use rocket::fairing::AdHoc;
+
 #[macro_use] extern crate rocket;
 
 #[cfg(test)] mod tests;
@@ -37,6 +39,9 @@ fn mir() -> &'static str {
 fn wave(name: &str, age: u8) -> String {
     format!("👋 Hello, {} year old named {}!", age, name)
 }
+
+#[get("/<a>/<b>")]
+fn f(a: usize, b: usize) { }
 
 // Note: without the `..` in `opt..`, we'd need to pass `opt.emoji`, `opt.name`.
 //

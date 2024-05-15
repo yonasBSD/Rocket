@@ -687,7 +687,7 @@ impl Rocket<Ignite> {
             rocket.shutdown.spawn_listener(&rocket.config.shutdown);
             if let Err(e) = tokio::spawn(Rocket::liftoff(rocket.clone())).await {
                 let rocket = rocket.try_wait_shutdown().await.map(Box::new);
-                return Err(ErrorKind::Liftoff(rocket, Box::new(e)).into());
+                return Err(ErrorKind::Liftoff(rocket, e).into());
             }
 
             Ok(rocket)

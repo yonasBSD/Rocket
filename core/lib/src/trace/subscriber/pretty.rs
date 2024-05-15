@@ -89,7 +89,53 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RocketFmt<Pretty> {
                 println!("{prefix}{}{} {}", self.emoji("🚀 "),
                     "Rocket has launched from".paint(style).primary().bold(),
                     &data["endpoint"].paint(style).primary().bold().underline());
-            }
+            },
+            "route" => println!("{}", Formatter(|f| {
+                write!(f, "{}{}{}: ", self.indent(), self.marker(), "route".paint(style))?;
+
+                let (base, mut relative) = (&data["uri.base"], &data["uri.unmounted"]);
+                if base.ends_with('/') && relative.starts_with('/') {
+                    relative = &relative[1..];
+                }
+
+                write!(f, "{:>3} {} {}{}",
+                    &data["rank"].paint(style.bright().dim()),
+                    &data["method"].paint(style.bold()),
+                    base.paint(style.primary().underline()),
+                    relative.paint(style.primary()),
+                )?;
+
+                if let Some(name) = data.get("name") {
+                    write!(f, " ({})", name.paint(style.bold().bright()))?;
+                }
+
+                Ok(())
+            })),
+            "catcher" => println!("{}", Formatter(|f| {
+                write!(f, "{}{}{}: ", self.indent(), self.marker(), "catcher".paint(style))?;
+
+                match data.get("code") {
+                    Some(code) => write!(f, "{} ", code.paint(style.bold()))?,
+                    None => write!(f, "{} ", "default".paint(style.bold()))?,
+                }
+
+                write!(f, "{}", &data["uri.base"].paint(style.primary()))?;
+                if let Some(name) = data.get("name") {
+                    write!(f, " ({})", name.paint(style.bold().bright()))?;
+                }
+
+                Ok(())
+            })),
+            "header" => println!("{}{}{}: {}: {}",
+                self.indent(), self.marker(), "header".paint(style),
+                &data["name"].paint(style.bold()),
+                &data["value"].paint(style.primary()),
+            ),
+            "fairing" => println!("{}{}{}: {} {}",
+                self.indent(), self.marker(), "fairing".paint(style),
+                &data["name"].paint(style.bold()),
+                &data["kind"].paint(style.primary().dim()),
+            ),
             _ => self.print_pretty(meta, event),
         }
     }
@@ -111,14 +157,22 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RocketFmt<Pretty> {
 
             let meta = span.metadata();
             let style = self.style(meta);
-            let prefix = self.prefix(meta);
             let emoji = self.emoji(icon);
             let name = name.paint(style).bold();
 
-            if !attrs.fields().is_empty() {
-                println!("{prefix}{emoji}{name} ({})", self.compact_fields(meta, attrs))
+            let fields = self.compact_fields(meta, attrs);
+            let prefix = self.prefix(meta);
+            let fieldless_prefix = Formatter(|f| write!(f, "{prefix}{emoji}{name} "));
+            let field_prefix = Formatter(|f| write!(f, "{prefix}{emoji}{name} ({fields}) "));
+
+            if self.has_message(meta) && self.has_data_fields(meta) {
+                print!("{}", self.message(&field_prefix, &fieldless_prefix, meta, attrs));
+            } else if self.has_message(meta) {
+                print!("{}", self.message(&fieldless_prefix, &fieldless_prefix, meta, attrs));
+            } else if self.has_data_fields(meta) {
+                println!("{field_prefix}");
             } else {
-                println!("{prefix}{emoji}{name}");
+                println!("{fieldless_prefix}");
             }
         }
 

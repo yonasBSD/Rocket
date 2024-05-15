@@ -9,6 +9,7 @@ use rocket::fairing::AdHoc;
 use rocket::listener::{Bind, DefaultListener};
 use rocket::serde::{Deserialize, DeserializeOwned, Serialize};
 use rocket::{Build, Ignite, Rocket};
+use rocket::trace::Traceable;
 
 use ipc_channel::ipc::{IpcOneShotServer, IpcReceiver, IpcSender};
 
@@ -135,7 +136,7 @@ impl Token {
             let sender = IpcSender::<Message>::connect(server).unwrap();
             let _ = sender.send(Message::Failure);
             let _ = sender.send(Message::Failure);
-            e.pretty_print();
+            e.trace_error();
             std::process::exit(1);
         }
 

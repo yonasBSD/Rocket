@@ -1,5 +1,6 @@
 use rocket::{Rocket, Build, Orbit};
 use rocket::fairing::{self, Fairing, Info, Kind};
+use rocket::figment::{Source, value::magic::RelativePathBuf};
 
 use crate::context::{Callback, Context, ContextManager};
 use crate::template::DEFAULT_TEMPLATE_DIR;
@@ -31,8 +32,6 @@ impl Fairing for TemplateFairing {
     /// template engines. In debug mode, the `ContextManager::new` method
     /// initializes a directory watcher for auto-reloading of templates.
     async fn on_ignite(&self, rocket: Rocket<Build>) -> fairing::Result {
-        use rocket::figment::value::magic::RelativePathBuf;
-
         let configured_dir = rocket.figment()
             .extract_inner::<RelativePathBuf>("template_dir")
             .map(|path| path.relative());
@@ -55,14 +54,13 @@ impl Fairing for TemplateFairing {
     }
 
     async fn on_liftoff(&self, rocket: &Rocket<Orbit>) {
-        use rocket::{figment::Source, yansi::Paint};
-
         let cm = rocket.state::<ContextManager>()
             .expect("Template ContextManager registered in on_ignite");
 
-        info!("{}{}:", "📐 ".emoji(), "Templating".magenta());
-        info_!("directory: {}", Source::from(&*cm.context().root).primary());
-        info_!("engines: {:?}", Engines::ENABLED_EXTENSIONS.primary());
+        info_span!("templating" [icon = "📐"] => {
+            info!(directory = %Source::from(&*cm.context().root));
+            info!(engines = ?Engines::ENABLED_EXTENSIONS);
+        });
     }
 
     #[cfg(debug_assertions)]
@@ -72,5 +70,4 @@ impl Fairing for TemplateFairing {
 
         cm.reload_if_needed(&self.callback);
     }
-
 }
