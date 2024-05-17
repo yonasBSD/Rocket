@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use rocket::{Rocket, Request, State, Data, Build};
 use rocket::fairing::{self, AdHoc, Fairing, Info, Kind};
-use rocket::trace::Traceable;
+use rocket::trace::Trace;
 use rocket::http::Method;
 
 struct Token(i64);

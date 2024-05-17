@@ -6,7 +6,7 @@ use rocket::fairing::{AdHoc, Fairing};
 use rocket::request::{Request, Outcome, FromRequest};
 use rocket::outcome::IntoOutcome;
 use rocket::http::Status;
-use rocket::trace::Traceable;
+use rocket::trace::Trace;
 
 use rocket::tokio::time::timeout;
 use rocket::tokio::sync::{OwnedSemaphorePermit, Semaphore, Mutex};

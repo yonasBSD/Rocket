@@ -10,7 +10,7 @@ pub fn serialize<S: Serializer>(level: &Option<Level>, s: S) -> Result<S::Ok, S:
 pub fn deserialize<'de, D: Deserializer<'de>>(de: D) -> Result<Option<Level>, D::Error> {
     struct Visitor;
 
-    const E: &str = r#"one of "off", "error", "warn", "info", "debug", "trace", or a number 0-5"#;
+    const E: &str = r#"one of "off", "error", "warn", "info", "debug", "trace", or 0-5"#;
 
     impl<'de> de::Visitor<'de> for Visitor {
         type Value = Option<Level>;

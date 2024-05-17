@@ -8,7 +8,7 @@ use rocket::{route, Error, Request, Data, Route, Orbit, Rocket, Ignite};
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::response::Redirect;
 use rocket::listener::tcp::TcpListener;
-use rocket::trace::Traceable;
+use rocket::trace::Trace;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Redirector(u16);

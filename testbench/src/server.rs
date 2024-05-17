@@ -9,7 +9,7 @@ use rocket::fairing::AdHoc;
 use rocket::listener::{Bind, DefaultListener};
 use rocket::serde::{Deserialize, DeserializeOwned, Serialize};
 use rocket::{Build, Ignite, Rocket};
-use rocket::trace::Traceable;
+use rocket::trace::Trace;
 
 use ipc_channel::ipc::{IpcOneShotServer, IpcReceiver, IpcSender};
 

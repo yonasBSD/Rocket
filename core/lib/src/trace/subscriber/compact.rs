@@ -1,21 +1,20 @@
+use std::fmt;
+use std::time::Instant;
 use std::num::NonZeroU64;
 
-use std::fmt;
-use std::sync::OnceLock;
-use std::time::Instant;
-
-use time::OffsetDateTime;
 use tracing::{Event, Level, Metadata, Subscriber};
 use tracing::span::{Attributes, Id, Record};
-
 use tracing_subscriber::layer::{Layer, Context};
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::field::RecordFields;
 
+use time::OffsetDateTime;
 use yansi::{Paint, Painted};
 
 use crate::util::Formatter;
-use crate::trace::subscriber::{Data, Handle, RocketFmt};
+use crate::trace::subscriber::{Data, RocketFmt};
+use crate::http::{Status, StatusClass};
+use super::RecordDisplay;
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct Compact {
@@ -27,6 +26,7 @@ pub struct Compact {
 pub struct RequestData {
     start: Instant,
     fields: Data,
+    item: Option<(String, String)>,
 }
 
 impl RequestData {
@@ -34,17 +34,12 @@ impl RequestData {
         Self {
             start: Instant::now(),
             fields: Data::new(attrs),
+            item: None,
         }
     }
 }
 
 impl RocketFmt<Compact> {
-    pub fn init(config: Option<&crate::Config>) {
-        static HANDLE: OnceLock<Handle<Compact>> = OnceLock::new();
-
-        Self::init_with(config, &HANDLE);
-    }
-
     fn request_span_id(&self) -> Option<Id> {
         self.state().request.map(Id::from_non_zero_u64)
     }
@@ -69,8 +64,9 @@ impl RocketFmt<Compact> {
             .then_some(meta.target())
             .unwrap_or(meta.name());
 
+        let pad = self.level.map_or(0, |lvl| lvl.as_str().len());
         let timestamp = self.timestamp_for(OffsetDateTime::now_utc());
-        Formatter(move |f| write!(f, "{} {:>5} {} ",
+        Formatter(move |f| write!(f, "{} {:>pad$} {} ",
             timestamp.paint(style).primary().dim(),
             meta.level().paint(style),
             name.paint(style).primary()))
@@ -101,11 +97,17 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RocketFmt<Compact> {
 
     fn on_event(&self, event: &Event<'_>, ctxt: Context<'_, S>) {
         if let Some(id) = self.request_span_id() {
-            if event.metadata().name() == "response" {
+            let name = event.metadata().name();
+            if name == "response" {
                 let req_span = ctxt.span(&id).expect("on_event: req does not exist");
                 let mut exts = req_span.extensions_mut();
                 let data = exts.get_mut::<RequestData>().unwrap();
                 event.record(&mut data.fields);
+            } else if name == "catcher" || name == "route" {
+                let req_span = ctxt.span(&id).expect("on_event: req does not exist");
+                let mut exts = req_span.extensions_mut();
+                let data = exts.get_mut::<RequestData>().unwrap();
+                data.item = event.find_map_display("name", |v| (name.into(), v.to_string()))
             }
 
             if !self.in_debug() {
@@ -175,16 +177,49 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RocketFmt<Compact> {
             let datetime = OffsetDateTime::now_utc() - elapsed;
             let timestamp = self.timestamp_for(datetime);
 
-            let style = self.style(span.metadata());
+            let s = self.style(span.metadata());
             let prefix = self.prefix(span.metadata());
             let chevron = self.chevron(span.metadata());
+            let arrow = "→".paint(s.primary().bright());
 
-            println!("{prefix}{chevron} ({} {}ms) {} {} => {}",
-                timestamp.paint(style).primary().dim(),
+            let status_class = data.fields["status"].parse().ok()
+                .and_then(Status::from_code)
+                .map(|status| status.class());
+
+            let status_style = match status_class {
+                Some(StatusClass::Informational) => s,
+                Some(StatusClass::Success) => s.green(),
+                Some(StatusClass::Redirection) => s.magenta(),
+                Some(StatusClass::ClientError) => s.yellow(),
+                Some(StatusClass::ServerError) => s.red(),
+                Some(StatusClass::Unknown) => s.cyan(),
+                None => s.primary(),
+            };
+
+            let autohandle = Formatter(|f| {
+                match data.fields.get("autohandled") {
+                    Some("true") => write!(f, " {} {}", "via".paint(s.dim()), "GET".paint(s)),
+                    _ => Ok(())
+                }
+            });
+
+            let item = Formatter(|f| {
+                match &data.item {
+                    Some((kind, name)) => write!(f,
+                        "{} {} {arrow} ",
+                        kind.paint(s),
+                        name.paint(s.bold()),
+                    ),
+                    None => Ok(())
+                }
+            });
+
+            println!("{prefix}{chevron} ({} {}ms) {}{autohandle} {} {arrow} {item}{}",
+                timestamp.paint(s).primary().dim(),
                 elapsed.as_millis(),
-                &data.fields["method"].paint(style),
+                &data.fields["method"].paint(s),
                 &data.fields["uri"],
-                &data.fields["status"],
+                &data.fields["status"].paint(status_style),
             );
         }
     }

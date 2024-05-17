@@ -7,7 +7,7 @@ use rocket::fairing::Fairing;
 use rocket::response::{self, Responder};
 use rocket::http::{ContentType, Status};
 use rocket::figment::{value::Value, error::Error};
-use rocket::trace::Traceable;
+use rocket::trace::Trace;
 use rocket::serde::Serialize;
 
 use crate::Engines;

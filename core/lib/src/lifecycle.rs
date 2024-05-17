@@ -1,7 +1,7 @@
 use futures::future::{FutureExt, Future};
 
 use crate::{route, catcher, Rocket, Orbit, Request, Response, Data};
-use crate::trace::Traceable;
+use crate::trace::Trace;
 use crate::util::Formatter;
 use crate::data::IoHandler;
 use crate::http::{Method, Status, Header};

@@ -7,6 +7,7 @@ use tracing_subscriber::field::RecordFields;
 use crate::util::Formatter;
 
 pub trait RecordDisplay: RecordFields {
+    fn find_map_display<T, F: Fn(&dyn fmt::Display) -> T>(&self, name: &str, f: F) -> Option<T>;
     fn record_display<F: FnMut(&Field, &dyn fmt::Display)>(&self, f: F);
 }
 
@@ -53,6 +54,12 @@ impl Visit for Data {
 }
 
 impl<T: RecordFields> RecordDisplay for T {
+    fn find_map_display<V, F: Fn(&dyn fmt::Display) -> V>(&self, name: &str, f: F) -> Option<V> {
+        let mut value = None;
+        self.record_display(|field, item| if field.name() == name { value = Some(f(item)); });
+        value
+    }
+
     fn record_display<F: FnMut(&Field, &dyn fmt::Display)>(&self, f: F) {
         struct DisplayVisit<F>(F);
 

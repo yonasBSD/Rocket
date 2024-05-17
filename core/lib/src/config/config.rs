@@ -10,7 +10,7 @@ use crate::config::{ShutdownConfig, Ident, CliColors};
 use crate::request::{self, Request, FromRequest};
 use crate::http::uncased::Uncased;
 use crate::data::Limits;
-use crate::trace::Traceable;
+use crate::trace::{Trace, TraceFormat};
 
 /// Rocket server configuration.
 ///
@@ -26,9 +26,10 @@ use crate::trace::Traceable;
 /// the debug profile while [`Config::release_default()`] the default values for
 /// the release profile. The [`Config::default()`] method automatically selects
 /// the appropriate of the two based on the selected profile. With the exception
-/// of `log_level`, which is `normal` in `debug` and `critical` in `release`,
-/// and `secret_key`, which is regenerated from a random value if not set in
-/// "debug" mode only, all default values are identical in all profiles.
+/// of `log_level` and `log_format`, which are `info` / `pretty` in `debug` and
+/// `error` / `compact` in `release`, and `secret_key`, which is regenerated
+/// from a random value if not set in "debug" mode only, all default values are
+/// identical in all profiles.
 ///
 /// # Provider Details
 ///
@@ -124,6 +125,8 @@ pub struct Config {
     /// Max level to log. **(default: _debug_ `info` / _release_ `error`)**
     #[serde(with = "crate::trace::level")]
     pub log_level: Option<Level>,
+    /// Format to use when logging. **(default: _debug_ `pretty` / _release_ `compact`)**
+    pub log_format: TraceFormat,
     /// Whether to use colors and emoji when logging. **(default:
     /// [`CliColors::Auto`])**
     pub cli_colors: CliColors,
@@ -193,6 +196,7 @@ impl Config {
             secret_key: SecretKey::zero(),
             shutdown: ShutdownConfig::default(),
             log_level: Some(Level::INFO),
+            log_format: TraceFormat::Pretty,
             cli_colors: CliColors::Auto,
             __non_exhaustive: (),
         }
@@ -217,6 +221,7 @@ impl Config {
         Config {
             profile: Self::RELEASE_PROFILE,
             log_level: Some(Level::ERROR),
+            log_format: TraceFormat::Compact,
             ..Config::debug_default()
         }
     }
@@ -354,6 +359,9 @@ impl Config {
     /// The stringy parameter name for setting/extracting [`Config::log_level`].
     pub const LOG_LEVEL: &'static str = "log_level";
 
+    /// The stringy parameter name for setting/extracting [`Config::log_format`].
+    pub const LOG_FORMAT: &'static str = "log_format";
+
     /// The stringy parameter name for setting/extracting [`Config::shutdown`].
     pub const SHUTDOWN: &'static str = "shutdown";
 
@@ -364,8 +372,8 @@ impl Config {
     pub const PARAMETERS: &'static [&'static str] = &[
         Self::WORKERS, Self::MAX_BLOCKING, Self::KEEP_ALIVE, Self::IDENT,
         Self::IP_HEADER, Self::PROXY_PROTO_HEADER, Self::LIMITS,
-        Self::SECRET_KEY, Self::TEMP_DIR, Self::LOG_LEVEL, Self::SHUTDOWN,
-        Self::CLI_COLORS,
+        Self::SECRET_KEY, Self::TEMP_DIR, Self::LOG_LEVEL, Self::LOG_FORMAT,
+        Self::SHUTDOWN, Self::CLI_COLORS,
     ];
 
     /// The stringy parameter name for setting/extracting [`Config::profile`].

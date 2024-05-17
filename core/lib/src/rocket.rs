@@ -11,7 +11,7 @@ use figment::{Figment, Provider};
 use futures::TryFutureExt;
 
 use crate::shutdown::{Stages, Shutdown};
-use crate::trace::{Traceable, TraceableCollection};
+use crate::trace::{Trace, TraceAll};
 use crate::{sentinel, shield::Shield, Catcher, Config, Route};
 use crate::listener::{Bind, DefaultListener, Endpoint, Listener};
 use crate::router::Router;
@@ -247,7 +247,7 @@ impl Rocket<Build> {
               B::Error: fmt::Display,
               M: Fn(&Origin<'a>, T) -> T,
               F: Fn(&mut Self, T),
-              T: Clone + Traceable,
+              T: Clone + Trace,
     {
         let mut base = match base.clone().try_into() {
             Ok(origin) => origin.into_owned(),

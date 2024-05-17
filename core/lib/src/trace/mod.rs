@@ -9,15 +9,24 @@ pub mod subscriber;
 pub(crate) mod level;
 
 #[doc(inline)]
-pub use traceable::{Traceable, TraceableCollection};
+pub use traceable::{Trace, TraceAll};
 
 #[doc(inline)]
 pub use macros::*;
 
-pub fn init<'a, T: Into<Option<&'a crate::Config>>>(_config: T) {
-    #[cfg(all(feature = "trace", debug_assertions))]
-    subscriber::RocketFmt::<subscriber::Pretty>::init(_config.into());
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
+#[serde(crate = "rocket::serde")]
+pub enum TraceFormat {
+    #[serde(rename = "pretty")]
+    #[serde(alias = "PRETTY")]
+    Pretty,
+    #[serde(rename = "compact")]
+    #[serde(alias = "COMPACT")]
+    Compact
+}
 
-    #[cfg(all(feature = "trace", not(debug_assertions)))]
-    subscriber::RocketFmt::<subscriber::Compact>::init(_config.into());
+#[cfg_attr(nightly, doc(cfg(feature = "trace")))]
+pub fn init<'a, T: Into<Option<&'a crate::Config>>>(config: T) {
+    #[cfg(feature = "trace")]
+    crate::trace::subscriber::RocketDynFmt::init(config.into())
 }

@@ -1,5 +1,6 @@
 use std::error::Error as StdError;
 
+use crate::request::ConnectionMeta;
 use crate::sentinel::Sentry;
 use crate::util::Formatter;
 use crate::{route, Catcher, Config, Error, Request, Response, Route};
@@ -9,7 +10,7 @@ use figment::Figment;
 use rocket::http::Header;
 use tracing::Level;
 
-pub trait Traceable {
+pub trait Trace {
     fn trace(&self, level: Level);
 
     #[inline(always)] fn trace_info(&self) { self.trace(Level::INFO) }
@@ -19,7 +20,7 @@ pub trait Traceable {
     #[inline(always)] fn trace_trace(&self) { self.trace(Level::TRACE) }
 }
 
-pub trait TraceableCollection: Sized {
+pub trait TraceAll: Sized {
     fn trace_all(self, level: Level);
 
     #[inline(always)] fn trace_all_info(self) { self.trace_all(Level::INFO) }
@@ -29,20 +30,20 @@ pub trait TraceableCollection: Sized {
     #[inline(always)] fn trace_all_trace(self) { self.trace_all(Level::TRACE) }
 }
 
-impl<T: Traceable, I: IntoIterator<Item = T>> TraceableCollection for I {
+impl<T: Trace, I: IntoIterator<Item = T>> TraceAll for I {
     fn trace_all(self, level: Level) {
         self.into_iter().for_each(|i| i.trace(level))
     }
 }
 
-impl<T: Traceable> Traceable for &T {
+impl<T: Trace> Trace for &T {
     #[inline(always)]
     fn trace(&self, level: Level) {
         T::trace(self, level)
     }
 }
 
-impl Traceable for Figment {
+impl Trace for Figment {
     fn trace(&self, level: Level) {
         for param in Config::PARAMETERS {
             if let Some(source) = self.find_metadata(param) {
@@ -69,11 +70,12 @@ impl Traceable for Figment {
     }
 }
 
-impl Traceable for Config {
+impl Trace for Config {
     fn trace(&self, level: Level) {
         event! { level, "config",
             http2 = cfg!(feature = "http2"),
             log_level = self.log_level.map(|l| l.as_str()),
+            log_format = ?self.log_format,
             cli_colors = %self.cli_colors,
             workers = self.workers,
             max_blocking = self.max_blocking,
@@ -130,7 +132,7 @@ impl Traceable for Config {
     }
 }
 
-impl Traceable for Route {
+impl Trace for Route {
     fn trace(&self, level: Level) {
         event! { level, "route",
             name = self.name.as_ref().map(|n| &**n),
@@ -153,7 +155,7 @@ impl Traceable for Route {
     }
 }
 
-impl Traceable for Catcher {
+impl Trace for Catcher {
     fn trace(&self, level: Level) {
         event! { level, "catcher",
             name = self.name.as_ref().map(|n| &**n),
@@ -167,19 +169,19 @@ impl Traceable for Catcher {
     }
 }
 
-impl Traceable for &dyn crate::fairing::Fairing {
+impl Trace for &dyn crate::fairing::Fairing {
     fn trace(&self, level: Level) {
         self.info().trace(level)
     }
 }
 
-impl Traceable for crate::fairing::Info {
+impl Trace for crate::fairing::Info {
     fn trace(&self, level: Level) {
         event!(level, "fairing", name = self.name, kind = %self.kind)
     }
 }
 
-impl Traceable for figment::error::Kind {
+impl Trace for figment::error::Kind {
     fn trace(&self, _: Level) {
         use figment::error::{OneOf as V, Kind::*};
 
@@ -200,7 +202,7 @@ impl Traceable for figment::error::Kind {
     }
 }
 
-impl Traceable for figment::Error {
+impl Trace for figment::Error {
     fn trace(&self, _: Level) {
         for e in self.clone() {
             let span = tracing::error_span! {
@@ -218,13 +220,13 @@ impl Traceable for figment::Error {
     }
 }
 
-impl Traceable for Header<'_> {
+impl Trace for Header<'_> {
     fn trace(&self, level: Level) {
         event!(level, "header", name = self.name().as_str(), value = self.value());
     }
 }
 
-impl Traceable for route::Outcome<'_> {
+impl Trace for route::Outcome<'_> {
     fn trace(&self, level: Level) {
         event!(level, "outcome",
             outcome = match self {
@@ -241,19 +243,19 @@ impl Traceable for route::Outcome<'_> {
     }
 }
 
-impl Traceable for Response<'_> {
+impl Trace for Response<'_> {
     fn trace(&self, level: Level) {
         event!(level, "response", status = self.status().code);
     }
 }
 
-impl Traceable for Error {
+impl Trace for Error {
     fn trace(&self, level: Level) {
         self.kind.trace(level);
     }
 }
 
-impl Traceable for Sentry {
+impl Trace for Sentry {
     fn trace(&self, level: Level) {
         let (file, line, col) = self.location;
         event!(level, "sentry",
@@ -263,13 +265,22 @@ impl Traceable for Sentry {
     }
 }
 
-impl Traceable for Request<'_> {
+impl Trace for Request<'_> {
     fn trace(&self, level: Level) {
         event!(level, "request", method = %self.method(), uri = %self.uri())
     }
 }
 
-impl Traceable for ErrorKind {
+impl Trace for ConnectionMeta {
+    fn trace(&self, level: Level) {
+        event!(level, "connection",
+            endpoint = self.peer_endpoint.as_ref().map(display),
+            certs = self.peer_certs.is_some(),
+        )
+    }
+}
+
+impl Trace for ErrorKind {
     fn trace(&self, level: Level) {
         use ErrorKind::*;
 

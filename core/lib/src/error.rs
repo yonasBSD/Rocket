@@ -7,7 +7,7 @@ use std::sync::Arc;
 use figment::Profile;
 
 use crate::listener::Endpoint;
-use crate::trace::Traceable;
+use crate::trace::Trace;
 use crate::{Ignite, Orbit, Phase, Rocket};
 
 /// An error that occurs during launch.
