@@ -176,6 +176,8 @@ pub struct Route {
     pub format: Option<MediaType>,
     /// The discovered sentinels.
     pub(crate) sentinels: Vec<Sentry>,
+    /// The file, line, and column where the route was defined, if known.
+    pub(crate) location: Option<(&'static str, u32, u32)>,
 }
 
 impl Route {
@@ -250,6 +252,7 @@ impl Route {
             format: None,
             sentinels: Vec::new(),
             handler: Box::new(handler),
+            location: None,
             rank, uri, method,
         }
     }
@@ -371,6 +374,8 @@ pub struct StaticInfo {
     /// Route-derived sentinels, if any.
     /// This isn't `&'static [SentryInfo]` because `type_name()` isn't `const`.
     pub sentinels: Vec<Sentry>,
+    /// The file, line, and column where the route was defined.
+    pub location: (&'static str, u32, u32),
 }
 
 #[doc(hidden)]
@@ -386,6 +391,7 @@ impl From<StaticInfo> for Route {
             rank: info.rank.unwrap_or_else(|| uri.default_rank()),
             format: info.format,
             sentinels: info.sentinels.into_iter().collect(),
+            location: Some(info.location),
             uri,
         }
     }

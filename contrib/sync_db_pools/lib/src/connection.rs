@@ -68,7 +68,7 @@ impl<K: 'static, C: Poolable> ConnectionPool<K, C> {
                 let config = match Config::from(database, &rocket) {
                     Ok(config) => config,
                     Err(e) => {
-                        error_span!("database configuration error" [database] => e.trace_error());
+                        span_error!("database configuration error", database => e.trace_error());
                         return Err(rocket);
                     }
                 };
@@ -82,7 +82,7 @@ impl<K: 'static, C: Poolable> ConnectionPool<K, C> {
                         _marker: PhantomData,
                     })),
                     Err(Error::Config(e)) => {
-                        error_span!("database configuration error" [database] => e.trace_error());
+                        span_error!("database configuration error", database => e.trace_error());
                         Err(rocket)
                     }
                     Err(Error::Pool(reason)) => {

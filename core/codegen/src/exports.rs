@@ -86,6 +86,7 @@ define_exported_paths! {
     _Vec => ::std::vec::Vec,
     _Cow => ::std::borrow::Cow,
     _ExitCode => ::std::process::ExitCode,
+    display_hack => ::rocket::error::display_hack,
     BorrowMut => ::std::borrow::BorrowMut,
     Outcome => ::rocket::outcome::Outcome,
     FromForm => ::rocket::form::FromForm,

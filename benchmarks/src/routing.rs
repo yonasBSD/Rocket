@@ -1,5 +1,3 @@
-use std::collections::hash_set::HashSet;
-
 use criterion::{criterion_group, Criterion};
 
 use rocket::{route, config, Request, Data, Route, Config};
@@ -80,12 +78,12 @@ fn generate_matching_requests<'c>(client: &'c Client, routes: &[Route]) -> Vec<L
 fn client(routes: Vec<Route>) -> Client {
     let config = Config {
         profile: Config::RELEASE_PROFILE,
-        // log_level: rocket::config::LogLevel::Off,
+        log_level: None,
         cli_colors: config::CliColors::Never,
         shutdown: config::ShutdownConfig {
             ctrlc: false,
             #[cfg(unix)]
-            signals: HashSet::new(),
+            signals: std::collections::hash_set::HashSet::new(),
             ..Default::default()
         },
         ..Default::default()

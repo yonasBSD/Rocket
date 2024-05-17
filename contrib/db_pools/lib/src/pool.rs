@@ -269,7 +269,7 @@ mod deadpool_old {
 mod sqlx {
     use sqlx::ConnectOptions;
     use super::{Duration, Error, Config, Figment};
-    // use rocket::config::LogLevel;
+    use rocket::tracing::level_filters::LevelFilter;
 
     type Options<D> = <<D as sqlx::Database>::Connection as sqlx::Connection>::Options;
 
@@ -301,12 +301,21 @@ mod sqlx {
             specialize(&mut opts, &config);
 
             opts = opts.disable_statement_logging();
-            // if let Ok(level) = figment.extract_inner::<LogLevel>(rocket::Config::LOG_LEVEL) {
-            //     if !matches!(level, LogLevel::Normal | LogLevel::Off) {
-            //         opts = opts.log_statements(level.into())
-            //             .log_slow_statements(level.into(), Duration::default());
-            //     }
-            // }
+            if let Ok(value) = figment.find_value(rocket::Config::LOG_LEVEL) {
+                if let Some(level) = value.as_str().and_then(|v| v.parse().ok()) {
+                    let log_level = match level {
+                        LevelFilter::OFF => log::LevelFilter::Off,
+                        LevelFilter::ERROR => log::LevelFilter::Error,
+                        LevelFilter::WARN => log::LevelFilter::Warn,
+                        LevelFilter::INFO => log::LevelFilter::Info,
+                        LevelFilter::DEBUG => log::LevelFilter::Debug,
+                        LevelFilter::TRACE => log::LevelFilter::Trace,
+                    };
+
+                    opts = opts.log_statements(log_level)
+                        .log_slow_statements(log_level, Duration::default());
+                }
+            }
 
             sqlx::pool::PoolOptions::new()
                 .max_connections(config.max_connections as u32)

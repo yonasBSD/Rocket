@@ -248,7 +248,7 @@ impl Template {
         })?;
 
         let value = self.value.map_err(|e| {
-            error_span!("template context failed to serialize" => e.trace_error());
+            span_error!("templating", "template context failed to serialize" => e.trace_error());
             Status::InternalServerError
         })?;
 

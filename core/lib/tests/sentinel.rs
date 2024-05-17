@@ -1,4 +1,4 @@
-use rocket::{*, error::ErrorKind::SentinelAborts};
+use rocket::{*, either::Either, error::ErrorKind::SentinelAborts};
 
 #[get("/two")]
 fn two_states(_one: &State<u32>, _two: &State<String>) {}

@@ -4,8 +4,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use crate::{Rocket, Request, Response, Orbit, Config};
 use crate::fairing::{Fairing, Info, Kind};
 use crate::http::{Header, uncased::UncasedStr};
-use crate::shield::*;
-use crate::trace::*;
+use crate::shield::{Frame, Hsts, NoSniff, Permission, Policy};
+use crate::trace::{Trace, TraceAll};
 
 /// A [`Fairing`] that injects browser security and privacy headers into all
 /// outgoing responses.
@@ -195,7 +195,7 @@ impl Fairing for Shield {
             self.force_hsts.store(true, Ordering::Release);
         }
 
-        info_span!("shield" [policies = self.policies.len()] => {
+        span_info!("shield", policies = self.policies.len() => {
             self.policies.values().trace_all_info();
 
             if force_hsts {
@@ -211,7 +211,7 @@ impl Fairing for Shield {
         // the header is not already in the response.
         for header in self.policies.values() {
             if response.headers().contains(header.name()) {
-                warn_span!("shield refusing to overwrite existing response header" => {
+                span_warn!("shield", "shield refusing to overwrite existing response header" => {
                     header.trace_warn();
                 });
 

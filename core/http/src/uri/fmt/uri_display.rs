@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::{fmt, path};
 use std::borrow::Cow;
 
+use either::Either;
 use time::{macros::format_description, format_description::FormatItem};
 
 use crate::RawStr;
@@ -418,6 +419,17 @@ impl<P: Part, T: UriDisplay<P> + ?Sized> UriDisplay<P> for &T {
     #[inline(always)]
     fn fmt(&self, f: &mut Formatter<'_, P>) -> fmt::Result {
         UriDisplay::fmt(*self, f)
+    }
+}
+
+/// Defers to `T` or `U` in `Either<T, U>`.
+impl<P: Part, T: UriDisplay<P>, U: UriDisplay<P>> UriDisplay<P> for Either<T, U> {
+    #[inline(always)]
+    fn fmt(&self, f: &mut Formatter<'_, P>) -> fmt::Result {
+        match self {
+            Either::Left(t) => UriDisplay::fmt(t, f),
+            Either::Right(u) => UriDisplay::fmt(u, f),
+        }
     }
 }
 

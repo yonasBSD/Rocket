@@ -21,7 +21,7 @@ impl Engine for Tera {
 
         // Finally try to tell Tera about all of the templates.
         if let Err(e) = tera.add_template_files(files) {
-            error_span!("Tera templating initialization failed" => {
+            span_error!("templating", "Tera templating initialization failed" => {
                 let mut error = Some(&e as &dyn Error);
                 while let Some(err) = error {
                     error!("{err}");
@@ -48,7 +48,7 @@ impl Engine for Tera {
         match Tera::render(self, template, &tera_ctx) {
             Ok(string) => Some(string),
             Err(e) => {
-                error_span!("failed to render Tera template {name}" [template] => {
+                span_error!("templating", template, "failed to render Tera template" => {
                     let mut error = Some(&e as &dyn Error);
                     while let Some(err) = error {
                         error!("{err}");

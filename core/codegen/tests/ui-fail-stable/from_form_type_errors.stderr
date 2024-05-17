@@ -137,9 +137,9 @@ error[E0277]: the trait bound `Unknown: FromForm<'r>` is not satisfied
             <HashMap<K, V> as FromForm<'v>>
             <BTreeMap<K, V> as FromForm<'v>>
             <Arc<T> as FromForm<'v>>
+            <Vec<T> as FromForm<'v>>
             <form::from_form::_::proxy::Range<T> as FromForm<'r>>
             <form::from_form::_::proxy::RangeFrom<T> as FromForm<'r>>
-            <form::from_form::_::proxy::RangeTo<T> as FromForm<'r>>
           and $N others
   = note: required for `Unknown` to implement `FromForm<'r>`
 
@@ -196,9 +196,9 @@ error[E0277]: the trait bound `Foo<usize>: FromForm<'r>` is not satisfied
              <HashMap<K, V> as FromForm<'v>>
              <BTreeMap<K, V> as FromForm<'v>>
              <Arc<T> as FromForm<'v>>
+             <Vec<T> as FromForm<'v>>
              <form::from_form::_::proxy::Range<T> as FromForm<'r>>
              <form::from_form::_::proxy::RangeFrom<T> as FromForm<'r>>
-             <form::from_form::_::proxy::RangeTo<T> as FromForm<'r>>
            and $N others
    = note: required for `Foo<usize>` to implement `FromForm<'r>`
 

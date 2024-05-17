@@ -1,12 +1,12 @@
 use futures::future::{FutureExt, Future};
 
-use crate::{route, catcher, Rocket, Orbit, Request, Response, Data};
 use crate::trace::Trace;
 use crate::util::Formatter;
 use crate::data::IoHandler;
 use crate::http::{Method, Status, Header};
 use crate::outcome::Outcome;
 use crate::form::Form;
+use crate::{route, catcher, Rocket, Orbit, Request, Response, Data};
 
 // A token returned to force the execution of one method before another.
 pub(crate) struct RequestToken;
@@ -199,6 +199,7 @@ impl Rocket<Orbit> {
         let mut status = Status::NotFound;
         for route in self.router.route(request) {
             // Retrieve and set the requests parameters.
+            route.trace_info();
             request.set_route(route);
 
             let name = route.name.as_deref();
@@ -207,7 +208,6 @@ impl Rocket<Orbit> {
 
             // Check if the request processing completed (Some) or if the
             // request needs to be forwarded. If it does, continue the loop
-            route.trace_info();
             outcome.trace_info();
             match outcome {
                 o@Outcome::Success(_) | o@Outcome::Error(_) => return o,
@@ -215,9 +215,7 @@ impl Rocket<Orbit> {
             }
         }
 
-        let outcome = Outcome::Forward((data, status));
-        outcome.trace_info();
-        outcome
+        Outcome::Forward((data, status))
     }
 
     // Invokes the catcher for `status`. Returns the response on success.

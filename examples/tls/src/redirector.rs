@@ -45,7 +45,7 @@ impl Redirector {
     pub async fn try_launch(self, config: Config) -> Result<Rocket<Ignite>, Error> {
         use rocket::http::Method::*;
 
-        rocket::info_span!("HTTP -> HTTPS Redirector" => {
+        rocket::span_info!("HTTP -> HTTPS Redirector" => {
             info!(from =  self.0, to = config.tls_addr.port(),  "redirecting");
         });
 
@@ -75,7 +75,7 @@ impl Fairing for Redirector {
 
     async fn on_liftoff(&self, rocket: &Rocket<Orbit>) {
         let Some(tls_addr) = rocket.endpoints().find_map(|e| e.tls()?.tcp()) else {
-            rocket::warn_span!("HTTP -> HTTPS Redirector" => {
+            rocket::span_warn!("HTTP -> HTTPS Redirector" => {
                 warn!("Main instance is not being served over TLS/TCP.\n\
                     Redirector refusing to start.");
             });
@@ -95,7 +95,7 @@ impl Fairing for Redirector {
         let shutdown = rocket.shutdown();
         rocket::tokio::spawn(async move {
             if let Err(e) = this.try_launch(config).await {
-                error_span!("failed to start HTTP -> HTTPS redirector" => {
+                span_error!("HTTP -> HTTPS Redirector", "failed to start" => {
                     e.trace_error();
                     info!("shutting down main instance");
                 });

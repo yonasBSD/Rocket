@@ -1,9 +1,10 @@
-use futures::future::{Future, BoxFuture, FutureExt};
 use parking_lot::Mutex;
+use futures::future::{Future, BoxFuture, FutureExt};
 
-use crate::route::RouteUri;
 use crate::{Rocket, Request, Response, Data, Build, Orbit};
 use crate::fairing::{Fairing, Kind, Info, Result};
+use crate::route::RouteUri;
+use crate::trace::Trace;
 
 /// A ad-hoc fairing that can be created from a function or closure.
 ///
@@ -235,7 +236,7 @@ impl AdHoc {
             let app_config = match rocket.figment().extract::<T>() {
                 Ok(config) => config,
                 Err(e) => {
-                    crate::config::pretty_print_error(e);
+                    e.trace_error();
                     return Err(rocket);
                 }
             };

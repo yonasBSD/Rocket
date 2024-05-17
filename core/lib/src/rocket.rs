@@ -185,16 +185,9 @@ impl Rocket<Build> {
     /// ```
     #[must_use]
     pub fn custom<T: Provider>(provider: T) -> Self {
-        // We initialize the logger here so that logging from fairings and so on
-        // are visible; we use the final config to set a max log-level in ignite
-        crate::trace::init(None);
-
-        let rocket: Rocket<Build> = Rocket(Building {
-            figment: Figment::from(provider),
-            ..Default::default()
-        });
-
-        rocket.attach(Shield::default())
+        Rocket::<Build>(Building::default())
+            .reconfigure(provider)
+            .attach(Shield::default())
     }
 
     /// Overrides the current configuration provider with `provider`.
@@ -237,7 +230,12 @@ impl Rocket<Build> {
     /// ```
     #[must_use]
     pub fn reconfigure<T: Provider>(mut self, provider: T) -> Self {
+        // We initialize the logger here so that logging from fairings and so on
+        // are visible; we use the final config to set a max log-level in ignite
         self.figment = Figment::from(provider);
+        crate::trace::init(Config::try_from(&self.figment).ok().as_ref());
+        span_trace!("reconfigure" => self.figment().trace_trace());
+
         self
     }
 
@@ -566,14 +564,14 @@ impl Rocket<Build> {
         // Log everything we know: config, routes, catchers, fairings.
         // TODO: Store/print managed state type names?
         let fairings = self.fairings.unique_set();
-        info_span!("config" [profile = %self.figment().profile()] => {
+        span_info!("config", profile = %self.figment().profile() => {
             config.trace_info();
             self.figment().trace_debug();
         });
 
-        info_span!("routes" [count = self.routes.len()] => self.routes().trace_all_info());
-        info_span!("catchers" [count = self.catchers.len()] => self.catchers().trace_all_info());
-        info_span!("fairings" [count = fairings.len()] => fairings.trace_all_info());
+        span_info!("routes", count = self.routes.len() => self.routes().trace_all_info());
+        span_info!("catchers", count = self.catchers.len() => self.catchers().trace_all_info());
+        span_info!("fairings", count = fairings.len() => fairings.trace_all_info());
 
         // Ignite the rocket.
         let rocket: Rocket<Ignite> = Rocket(Igniting {
@@ -590,19 +588,6 @@ impl Rocket<Build> {
 
         Ok(rocket)
     }
-}
-
-#[tracing::instrument(name = "items", skip_all, fields(kind = kind))]
-fn log_items<T, I, B, O>(kind: &str, items: I, base: B, origin: O)
-    where T: fmt::Display + Copy, I: Iterator<Item = T>,
-          B: Fn(&T) -> &Origin<'_>, O: Fn(&T) -> &Origin<'_>
-{
-    let mut items: Vec<_> = items.collect();
-    items.sort_by_key(|i| origin(i).path().as_str().chars().count());
-    items.sort_by_key(|i| origin(i).path().segments().count());
-    items.sort_by_key(|i| base(i).path().as_str().chars().count());
-    items.sort_by_key(|i| base(i).path().segments().count());
-    items.iter().for_each(|item| info!(name: "item", %item));
 }
 
 impl Rocket<Ignite> {

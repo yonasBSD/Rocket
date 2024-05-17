@@ -1,7 +1,7 @@
-use std::time::Duration;
+use std::{str::FromStr, time::Duration};
 
 use reqwest::blocking::{ClientBuilder, RequestBuilder};
-use rocket::http::{ext::IntoOwned, uri::{Absolute, Uri}};
+use rocket::http::{ext::IntoOwned, uri::{Absolute, Uri}, Method};
 
 use crate::{Result, Error, Server};
 
@@ -26,7 +26,7 @@ impl Client {
             .connect_timeout(Duration::from_secs(5))
     }
 
-    pub fn get(&self, server: &Server, url: &str) -> Result<RequestBuilder> {
+    pub fn request(&self, server: &Server, method: Method, url: &str) -> Result<RequestBuilder> {
         let uri = match Uri::parse_any(url).map_err(|e| e.into_owned())? {
             Uri::Origin(uri) => {
                 let proto = if server.tls { "https" } else { "http" };
@@ -45,7 +45,16 @@ impl Client {
             uri => return Err(Error::InvalidUri(uri.into_owned())),
         };
 
-        Ok(self.client.get(uri.to_string()))
+        let method = reqwest::Method::from_str(method.as_str()).unwrap();
+        Ok(self.client.request(method, uri.to_string()))
+    }
+
+    pub fn get(&self, server: &Server, url: &str) -> Result<RequestBuilder> {
+        self.request(server, Method::Get, url)
+    }
+
+    pub fn post(&self, server: &Server, url: &str) -> Result<RequestBuilder> {
+        self.request(server, Method::Post, url)
     }
 }
 

@@ -10,7 +10,7 @@ error[E0277]: the trait bound `usize: Responder<'_, '_>` is not satisfied
             <Box<str> as Responder<'r, 'static>>
             <Box<[u8]> as Responder<'r, 'static>>
             <Box<T> as Responder<'r, 'o>>
-            <rocket::Either<T, E> as Responder<'r, 'o>>
+            <rocket::either::Either<T, E> as Responder<'r, 'o>>
             <Cow<'o, R> as Responder<'r, 'o>>
             <rocket::tokio::fs::File as Responder<'r, 'static>>
             <EventStream<S> as Responder<'r, 'r>>
@@ -29,7 +29,7 @@ error[E0277]: the trait bound `bool: Responder<'_, '_>` is not satisfied
              <Box<str> as Responder<'r, 'static>>
              <Box<[u8]> as Responder<'r, 'static>>
              <Box<T> as Responder<'r, 'o>>
-             <rocket::Either<T, E> as Responder<'r, 'o>>
+             <rocket::either::Either<T, E> as Responder<'r, 'o>>
              <Cow<'o, R> as Responder<'r, 'o>>
              <rocket::tokio::fs::File as Responder<'r, 'static>>
              <EventStream<S> as Responder<'r, 'r>>
@@ -62,7 +62,7 @@ error[E0277]: the trait bound `usize: Responder<'_, '_>` is not satisfied
              <Box<str> as Responder<'r, 'static>>
              <Box<[u8]> as Responder<'r, 'static>>
              <Box<T> as Responder<'r, 'o>>
-             <rocket::Either<T, E> as Responder<'r, 'o>>
+             <rocket::either::Either<T, E> as Responder<'r, 'o>>
              <Cow<'o, R> as Responder<'r, 'o>>
              <rocket::tokio::fs::File as Responder<'r, 'static>>
              <EventStream<S> as Responder<'r, 'r>>
@@ -81,7 +81,7 @@ error[E0277]: the trait bound `usize: Responder<'_, '_>` is not satisfied
              <Box<str> as Responder<'r, 'static>>
              <Box<[u8]> as Responder<'r, 'static>>
              <Box<T> as Responder<'r, 'o>>
-             <rocket::Either<T, E> as Responder<'r, 'o>>
+             <rocket::either::Either<T, E> as Responder<'r, 'o>>
              <Cow<'o, R> as Responder<'r, 'o>>
              <rocket::tokio::fs::File as Responder<'r, 'static>>
              <EventStream<S> as Responder<'r, 'r>>

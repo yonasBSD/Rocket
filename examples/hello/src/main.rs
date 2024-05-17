@@ -38,9 +38,6 @@ fn wave(name: &str, age: u8) -> String {
     format!("👋 Hello, {} year old named {}!", age, name)
 }
 
-#[get("/<a>/<b>")]
-fn f(a: usize, b: usize) { }
-
 // Note: without the `..` in `opt..`, we'd need to pass `opt.emoji`, `opt.name`.
 //
 // Try visiting:
@@ -54,7 +51,7 @@ fn f(a: usize, b: usize) { }
 //   http://127.0.0.1:8000/?name=Rocketeer&lang=en&emoji
 //   http://127.0.0.1:8000/?lang=ru&emoji&name=Rocketeer
 #[get("/?<lang>&<opt..>")]
-async fn hello(lang: Option<Lang>, opt: Options<'_>) -> String {
+fn hello(lang: Option<Lang>, opt: Options<'_>) -> String {
     let mut greeting = String::new();
     if opt.emoji {
         greeting.push_str("👋 ");

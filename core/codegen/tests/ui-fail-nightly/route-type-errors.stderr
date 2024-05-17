@@ -5,14 +5,14 @@ error[E0277]: the trait bound `Q: FromParam<'_>` is not satisfied
   |             ^ the trait `FromParam<'_>` is not implemented for `Q`
   |
   = help: the following other types implement trait `FromParam<'a>`:
-            &'a str
-            IpAddr
-            Ipv4Addr
-            Ipv6Addr
-            NonZero<i128>
-            NonZero<i16>
-            NonZero<i32>
-            NonZero<i64>
+            <&'a str as FromParam<'a>>
+            <IpAddr as FromParam<'a>>
+            <Ipv4Addr as FromParam<'a>>
+            <Ipv6Addr as FromParam<'a>>
+            <NonZero<i128> as FromParam<'a>>
+            <NonZero<i16> as FromParam<'a>>
+            <NonZero<i32> as FromParam<'a>>
+            <NonZero<i64> as FromParam<'a>>
           and $N others
 
 error[E0277]: the trait bound `Q: FromSegments<'_>` is not satisfied
@@ -104,14 +104,14 @@ error[E0277]: the trait bound `Q: FromParam<'_>` is not satisfied
    |                    ^ the trait `FromParam<'_>` is not implemented for `Q`
    |
    = help: the following other types implement trait `FromParam<'a>`:
-             &'a str
-             IpAddr
-             Ipv4Addr
-             Ipv6Addr
-             NonZero<i128>
-             NonZero<i16>
-             NonZero<i32>
-             NonZero<i64>
+             <&'a str as FromParam<'a>>
+             <IpAddr as FromParam<'a>>
+             <Ipv4Addr as FromParam<'a>>
+             <Ipv6Addr as FromParam<'a>>
+             <NonZero<i128> as FromParam<'a>>
+             <NonZero<i16> as FromParam<'a>>
+             <NonZero<i32> as FromParam<'a>>
+             <NonZero<i64> as FromParam<'a>>
            and $N others
 
 error[E0277]: the trait bound `Q: FromRequest<'_>` is not satisfied
@@ -138,14 +138,14 @@ error[E0277]: the trait bound `Q: FromParam<'_>` is not satisfied
    |                    ^ the trait `FromParam<'_>` is not implemented for `Q`
    |
    = help: the following other types implement trait `FromParam<'a>`:
-             &'a str
-             IpAddr
-             Ipv4Addr
-             Ipv6Addr
-             NonZero<i128>
-             NonZero<i16>
-             NonZero<i32>
-             NonZero<i64>
+             <&'a str as FromParam<'a>>
+             <IpAddr as FromParam<'a>>
+             <Ipv4Addr as FromParam<'a>>
+             <Ipv6Addr as FromParam<'a>>
+             <NonZero<i128> as FromParam<'a>>
+             <NonZero<i16> as FromParam<'a>>
+             <NonZero<i32> as FromParam<'a>>
+             <NonZero<i64> as FromParam<'a>>
            and $N others
 
 error[E0277]: the trait bound `Q: FromParam<'_>` is not satisfied
@@ -155,12 +155,12 @@ error[E0277]: the trait bound `Q: FromParam<'_>` is not satisfied
    |                                           ^ the trait `FromParam<'_>` is not implemented for `Q`
    |
    = help: the following other types implement trait `FromParam<'a>`:
-             &'a str
-             IpAddr
-             Ipv4Addr
-             Ipv6Addr
-             NonZero<i128>
-             NonZero<i16>
-             NonZero<i32>
-             NonZero<i64>
+             <&'a str as FromParam<'a>>
+             <IpAddr as FromParam<'a>>
+             <Ipv4Addr as FromParam<'a>>
+             <Ipv6Addr as FromParam<'a>>
+             <NonZero<i128> as FromParam<'a>>
+             <NonZero<i16> as FromParam<'a>>
+             <NonZero<i32> as FromParam<'a>>
+             <NonZero<i64> as FromParam<'a>>
            and $N others

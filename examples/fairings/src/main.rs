@@ -76,7 +76,7 @@ fn rocket() -> _ {
         .attach(AdHoc::on_request("PUT Rewriter", |req, _| {
             Box::pin(async move {
                 if req.uri().path() == "/" {
-                    info_span!("PUT rewriter" => {
+                    span_info!("PUT rewriter" => {
                         req.trace_info();
                         info!("changing method to `PUT`");
                         req.set_method(Method::Put);

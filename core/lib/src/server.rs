@@ -39,7 +39,7 @@ impl Rocket<Orbit> {
             Request::from_hyp(rocket, parts, connection).unwrap_or_else(|e| e)
         });
 
-        debug_span!("request headers" => request.inner().headers().iter().trace_all_debug());
+        span_debug!("request headers" => request.inner().headers().iter().trace_all_debug());
         let mut response = request.into_response(
             stream,
             |rocket, request, data| Box::pin(rocket.preprocess(request, data)),
@@ -54,7 +54,7 @@ impl Rocket<Orbit> {
 
         // TODO: Should upgrades be handled in dispatch?
         response.inner().trace_info();
-        debug_span!("response headers" => response.inner().headers().iter().trace_all_debug());
+        span_debug!("response headers" => response.inner().headers().iter().trace_all_debug());
         let io_handler = response.make_io_handler(Rocket::extract_io_handler);
         if let (Some((proto, handler)), Some(upgrade)) = (io_handler, upgrade) {
             let upgrade = upgrade.map_ok(IoStream::from).map_err(io::Error::other);
@@ -92,7 +92,7 @@ async fn io_handler_task<S>(proto: String, stream: S, mut handler: ErasedIoHandl
         Err(e) => return warn!(error = %e, "i/o upgrade failed"),
     };
 
-    info!("i/o upgrade succeeded");
+    debug!("i/o upgrade succeeded");
     if let Err(e) = handler.take().io(stream).await {
         match e.kind() {
             io::ErrorKind::BrokenPipe => warn!("i/o handler closed"),

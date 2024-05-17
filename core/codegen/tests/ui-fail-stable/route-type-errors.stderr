@@ -5,14 +5,14 @@ error[E0277]: the trait bound `Q: FromParam<'_>` is not satisfied
   |             ^ the trait `FromParam<'_>` is not implemented for `Q`
   |
   = help: the following other types implement trait `FromParam<'a>`:
-            bool
-            isize
-            i8
-            i16
-            i32
-            i64
-            i128
-            usize
+            <bool as FromParam<'a>>
+            <isize as FromParam<'a>>
+            <i8 as FromParam<'a>>
+            <i16 as FromParam<'a>>
+            <i32 as FromParam<'a>>
+            <i64 as FromParam<'a>>
+            <i128 as FromParam<'a>>
+            <usize as FromParam<'a>>
           and $N others
 
 error[E0277]: the trait bound `Q: FromSegments<'_>` is not satisfied
@@ -104,14 +104,14 @@ error[E0277]: the trait bound `Q: FromParam<'_>` is not satisfied
    |                    ^ the trait `FromParam<'_>` is not implemented for `Q`
    |
    = help: the following other types implement trait `FromParam<'a>`:
-             bool
-             isize
-             i8
-             i16
-             i32
-             i64
-             i128
-             usize
+             <bool as FromParam<'a>>
+             <isize as FromParam<'a>>
+             <i8 as FromParam<'a>>
+             <i16 as FromParam<'a>>
+             <i32 as FromParam<'a>>
+             <i64 as FromParam<'a>>
+             <i128 as FromParam<'a>>
+             <usize as FromParam<'a>>
            and $N others
 
 error[E0277]: the trait bound `Q: FromRequest<'_>` is not satisfied
@@ -138,14 +138,14 @@ error[E0277]: the trait bound `Q: FromParam<'_>` is not satisfied
    |                    ^ the trait `FromParam<'_>` is not implemented for `Q`
    |
    = help: the following other types implement trait `FromParam<'a>`:
-             bool
-             isize
-             i8
-             i16
-             i32
-             i64
-             i128
-             usize
+             <bool as FromParam<'a>>
+             <isize as FromParam<'a>>
+             <i8 as FromParam<'a>>
+             <i16 as FromParam<'a>>
+             <i32 as FromParam<'a>>
+             <i64 as FromParam<'a>>
+             <i128 as FromParam<'a>>
+             <usize as FromParam<'a>>
            and $N others
 
 error[E0277]: the trait bound `Q: FromParam<'_>` is not satisfied
@@ -155,12 +155,12 @@ error[E0277]: the trait bound `Q: FromParam<'_>` is not satisfied
    |                                           ^ the trait `FromParam<'_>` is not implemented for `Q`
    |
    = help: the following other types implement trait `FromParam<'a>`:
-             bool
-             isize
-             i8
-             i16
-             i32
-             i64
-             i128
-             usize
+             <bool as FromParam<'a>>
+             <isize as FromParam<'a>>
+             <i8 as FromParam<'a>>
+             <i16 as FromParam<'a>>
+             <i32 as FromParam<'a>>
+             <i64 as FromParam<'a>>
+             <i128 as FromParam<'a>>
+             <usize as FromParam<'a>>
            and $N others

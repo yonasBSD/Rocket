@@ -28,9 +28,9 @@ impl RocketFmt<Pretty> {
         MARKER.get(self.state().depth as usize).copied().unwrap_or("-- ")
     }
 
-    fn emoji(&self, emoji: &'static str) -> Painted<&'static str> {
+    fn emoji(&self, _emoji: &'static str) -> Painted<&'static str> {
         #[cfg(windows)] { "".paint(self.style).mask() }
-        #[cfg(not(windows))] { emoji.paint(self.style).mask() }
+        #[cfg(not(windows))] { _emoji.paint(self.style).mask() }
     }
 
     fn prefix<'a>(&self, meta: &'a Metadata<'_>) -> impl fmt::Display + 'a {
@@ -79,7 +79,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RocketFmt<Pretty> {
             "liftoff" => {
                 let prefix = self.prefix(meta);
                 println!("{prefix}{}{} {}", self.emoji("🚀 "),
-                    "Rocket has launched from".paint(style).primary().bold(),
+                    "Rocket has launched on".paint(style).primary().bold(),
                     &data["endpoint"].paint(style).primary().bold().underline());
             },
             "route" => println!("{}", Formatter(|f| {
@@ -98,7 +98,13 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RocketFmt<Pretty> {
                 )?;
 
                 if let Some(name) = data.get("name") {
-                    write!(f, " ({})", name.paint(style.bold().bright()))?;
+                    write!(f, " ({}", name.paint(style.bold().bright()))?;
+
+                    if let Some(location) = data.get("location") {
+                        write!(f, " {}", location.paint(style.dim()))?;
+                    }
+
+                    write!(f, ")")?;
                 }
 
                 Ok(())
@@ -113,7 +119,13 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RocketFmt<Pretty> {
 
                 write!(f, "{}", &data["uri.base"].paint(style.primary()))?;
                 if let Some(name) = data.get("name") {
-                    write!(f, " ({})", name.paint(style.bold().bright()))?;
+                    write!(f, " ({}", name.paint(style.bold().bright()))?;
+
+                    if let Some(location) = data.get("location") {
+                        write!(f, " {}", location.paint(style.dim()))?;
+                    }
+
+                    write!(f, ")")?;
                 }
 
                 Ok(())

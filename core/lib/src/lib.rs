@@ -123,6 +123,7 @@ pub use tokio;
 pub use figment;
 pub use time;
 pub use tracing;
+pub use either;
 
 #[macro_use]
 pub mod trace;
@@ -163,8 +164,6 @@ mod state;
 mod router;
 mod phase;
 mod erased;
-
-#[doc(hidden)] pub use either::Either;
 
 #[doc(inline)] pub use rocket_codegen::*;
 
@@ -254,6 +253,11 @@ pub fn async_test<R>(fut: impl std::future::Future<Output = R>) -> R {
 /// WARNING: This is unstable! Do not use this method outside of Rocket!
 #[doc(hidden)]
 pub fn async_main<R>(fut: impl std::future::Future<Output = R> + Send) -> R {
+    fn bail<T, E: crate::trace::Trace>(e: E) -> T {
+        e.trace_error();
+        panic!("aborting due to error")
+    }
+
     // FIXME: We need to run `fut` to get the user's `Figment` to properly set
     // up the async env, but we need the async env to run `fut`. So we're stuck.
     // Tokio doesn't let us take the state from one async env and migrate it to
@@ -263,8 +267,6 @@ pub fn async_main<R>(fut: impl std::future::Future<Output = R> + Send) -> R {
     // values won't reflect swaps of `Rocket` in attach fairings with different
     // config values, or values from non-Rocket configs. See tokio-rs/tokio#3329
     // for a necessary resolution in `tokio`.
-    use config::bail_with_config_error as bail;
-
     let fig = Config::figment();
     let workers = fig.extract_inner(Config::WORKERS).unwrap_or_else(bail);
     let max_blocking = fig.extract_inner(Config::MAX_BLOCKING).unwrap_or_else(bail);

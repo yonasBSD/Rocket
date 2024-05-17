@@ -67,8 +67,7 @@ impl EntryAttr for Launch {
         // Always infer the type as `Rocket<Build>`.
         if let syn::ReturnType::Type(_, ref mut ty) = &mut f.sig.output {
             if let syn::Type::Infer(_) = &mut **ty {
-                let new = quote_spanned!(ty.span() => ::rocket::Rocket<::rocket::Build>);
-                *ty = syn::parse2(new).expect("path is type");
+                *ty = syn::parse_quote_spanned!(ty.span() => ::rocket::Rocket<::rocket::Build>);
             }
         }
 
@@ -105,8 +104,9 @@ impl EntryAttr for Launch {
         }
 
         let (vis, mut sig) = (&f.vis, f.sig.clone());
-        sig.ident = syn::Ident::new("main", sig.ident.span());
-        sig.output = syn::parse_quote!(-> #_ExitCode);
+        sig.ident = syn::Ident::new("main", f.sig.ident.span());
+        let ret_ty = _ExitCode.respanned(ty.span());
+        sig.output = syn::parse_quote_spanned!(ty.span() => -> #ret_ty);
         sig.asyncness = None;
 
         Ok(quote_spanned!(block.span() =>

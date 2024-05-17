@@ -51,16 +51,6 @@ impl Fairings {
         iter!(self, self.active().collect::<HashSet<_>>().into_iter())
             .map(|v| v.1)
             .collect()
-        // .into_iter()
-        //     .map(|i| )
-        // if !active_fairings.is_empty() {
-        //     tracing::info_span!("fairings").in_scope(|| {
-        //         for (_, fairing) in iter!(self, active_fairings.into_iter()) {
-        //             let (name, kind) = (fairing.info().name, fairing.info().kind);
-        //             info!(name: "fairing", name, %kind)
-        //         }
-        //     });
-        // }
     }
 
     pub fn add(&mut self, fairing: Box<dyn Fairing>) {

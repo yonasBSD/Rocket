@@ -127,6 +127,9 @@ pub struct Catcher {
     ///
     /// This is -(number of nonempty segments in base).
     pub(crate) rank: isize,
+
+    /// The catcher's file, line, and column location.
+    pub(crate) location: Option<(&'static str, u32, u32)>,
 }
 
 // The rank is computed as -(number of nonempty segments in base) => catchers
@@ -185,7 +188,8 @@ impl Catcher {
             base: uri::Origin::root().clone(),
             handler: Box::new(handler),
             rank: rank(uri::Origin::root().path()),
-            code
+            code,
+            location: None,
         }
     }
 
@@ -328,6 +332,8 @@ pub struct StaticInfo {
     pub code: Option<u16>,
     /// The catcher's handler, i.e, the annotated function.
     pub handler: for<'r> fn(Status, &'r Request<'_>) -> BoxFuture<'r>,
+    /// The file, line, and column where the catcher was defined.
+    pub location: (&'static str, u32, u32),
 }
 
 #[doc(hidden)]
@@ -336,6 +342,7 @@ impl From<StaticInfo> for Catcher {
     fn from(info: StaticInfo) -> Catcher {
         let mut catcher = Catcher::new(info.code, info.handler);
         catcher.name = Some(info.name.into());
+        catcher.location = Some(info.location);
         catcher
     }
 }
