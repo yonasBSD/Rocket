@@ -12,9 +12,8 @@ license = "MIT OR Apache-2.0"
 edition = "2021"
 rust-version = "1.75"
 
-[lints.clippy]
-type_complexity = "allow"
-multiple_bound_locations = "allow"
+[lints]
+workspace = true
 
 [features]
 tera = ["dep:tera"]

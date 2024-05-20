@@ -15,15 +15,13 @@ categories = ["web-programming"]
 edition = "2021"
 rust-version = "1.75"
 
+[lints]
+workspace = true
+
 [features]
 default = []
 serde = ["dep:serde", "uncased/with-serde-alloc"]
 uuid = ["dep:uuid"]
-
-[lints.clippy]
-module_inception = "allow"
-multiple_bound_locations = "allow"
-manual_range_contains = "allow"
 
 [dependencies]
 tinyvec = { version = "1.6", features = ["std", "rustc_1_57"] }

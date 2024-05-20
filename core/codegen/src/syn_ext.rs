@@ -187,7 +187,7 @@ impl TypeExt for syn::Type {
     fn is_concrete(&self, generics: &[&Ident]) -> bool {
         struct ConcreteVisitor<'i>(bool, &'i [&'i Ident]);
 
-        impl<'a, 'i> Visit<'a> for ConcreteVisitor<'i> {
+        impl<'a> Visit<'a> for ConcreteVisitor<'_> {
             fn visit_type(&mut self, ty: &'a syn::Type) {
                 use syn::Type::*;
 

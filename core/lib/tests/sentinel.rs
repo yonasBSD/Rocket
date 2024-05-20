@@ -321,7 +321,7 @@ async fn known_macro_sentinel_works() {
     }
 
     #[get("/<_a>/<b>")]
-    fn reader<'a, 'b>(_a: &'a str, b: &'b str) -> ReaderStream![TextSentinel<'b>] {
+    fn reader<'b>(_a: &str, b: &'b str) -> ReaderStream![TextSentinel<'b>] {
         ReaderStream!(yield TextSentinel(b);)
     }
 

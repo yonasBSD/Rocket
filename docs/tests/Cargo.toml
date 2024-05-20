@@ -5,6 +5,9 @@ workspace = "../../"
 edition = "2021"
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
 rocket = { path = "../../core/lib", features = ["secrets"] }
 
