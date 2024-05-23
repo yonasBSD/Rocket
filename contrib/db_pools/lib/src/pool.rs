@@ -154,9 +154,8 @@ pub trait Pool: Sized + Send + Sync + 'static {
 
 #[cfg(feature = "deadpool")]
 mod deadpool_postgres {
-    use deadpool::{managed::{Manager, Pool, PoolError, Object, BuildError}, Runtime};
+    use deadpool::{Runtime, managed::{Manager, Pool, PoolError, Object}};
     use super::{Duration, Error, Config, Figment};
-    use rocket::Either;
 
     pub trait DeadManager: Manager + Sized + Send + Sync + 'static {
         fn new(config: &Config) -> Result<Self, Self::Error>;
@@ -180,13 +179,13 @@ mod deadpool_postgres {
     impl<M: DeadManager, C: From<Object<M>>> crate::Pool for Pool<M, C>
         where M::Type: Send, C: Send + Sync + 'static, M::Error: std::error::Error
     {
-        type Error = Error<Either<M::Error, BuildError>, PoolError<M::Error>>;
+        type Error = Error<PoolError<M::Error>>;
 
         type Connection = C;
 
         async fn init(figment: &Figment) -> Result<Self, Self::Error> {
             let config: Config = figment.extract()?;
-            let manager = M::new(&config).map_err(|e| Error::Init(Either::Left(e)))?;
+            let manager = M::new(&config).map_err(|e| Error::Init(e.into()))?;
 
             Pool::builder(manager)
                 .max_size(config.max_connections)
@@ -195,7 +194,7 @@ mod deadpool_postgres {
                 .recycle_timeout(config.idle_timeout.map(Duration::from_secs))
                 .runtime(Runtime::Tokio1)
                 .build()
-                .map_err(|e| Error::Init(Either::Right(e)))
+                .map_err(|_| Error::Init(PoolError::NoRuntimeSpecified))
         }
 
         async fn get(&self) -> Result<Self::Connection, Self::Error> {
