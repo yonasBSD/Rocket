@@ -7,30 +7,45 @@ use std::sync::Arc;
 use figment::Profile;
 
 use crate::listener::Endpoint;
-use crate::{Ignite, Orbit, Phase, Rocket};
+use crate::{Catcher, Ignite, Orbit, Phase, Rocket, Route};
 use crate::trace::Trace;
 
-/// An error that occurs during launch.
+/// An error that occurred during launch or ignition.
 ///
-/// An `Error` is returned by [`launch()`](Rocket::launch()) when launching an
-/// application fails or, more rarely, when the runtime fails after launching.
+/// An `Error` is returned by [`Rocket::launch()`] or [`Rocket::ignite()`] on
+/// failure to launch or ignite, respectively. An `Error` may occur when the
+/// configuration is invalid, when a route or catcher collision is detected, or
+/// when a fairing fails to launch. An `Error` may also occur when the Rocket
+/// instance fails to liftoff or when the Rocket instance fails to shutdown.
+/// Finally, an `Error` may occur when a sentinel requests an abort.
 ///
-/// # Usage
+/// To determine the kind of error that occurred, use [`Error::kind()`].
 ///
-/// An `Error` value should usually be allowed to `drop` without inspection.
-/// There are at least two exceptions:
+/// # Example
 ///
-///   1. If you are writing a library or high-level application on-top of
-///      Rocket, you likely want to inspect the value before it drops to avoid a
-///      Rocket-specific `panic!`. This typically means simply printing the
-///      value.
+/// ```rust
+/// # use rocket::*;
+/// use rocket::trace::Trace;
+/// use rocket::error::ErrorKind;
 ///
-///   2. You want to display your own error messages.
+/// # async fn run() -> Result<(), rocket::error::Error> {
+/// if let Err(e) = rocket::build().ignite().await {
+///     match e.kind() {
+///         ErrorKind::Bind(_, e) => info!("binding failed: {}", e),
+///         ErrorKind::Io(e) => info!("I/O error: {}", e),
+///         _ => e.trace_error(),
+///     }
+///
+///     return Err(e);
+/// }
+/// # Ok(())
+/// # }
+/// ```
 pub struct Error {
     pub(crate) kind: ErrorKind
 }
 
-/// The kind error that occurred.
+/// The error kind that occurred. Returned by [`Error::kind()`].
 ///
 /// In almost every instance, a launch error occurs because of an I/O error;
 /// this is represented by the `Io` variant. A launch error may also occur
@@ -39,17 +54,22 @@ pub struct Error {
 /// `FailedFairing` variants, respectively.
 #[derive(Debug)]
 #[non_exhaustive]
-// FIXME: Don't expose this. Expose access methods from `Error` instead.
 pub enum ErrorKind {
-    /// Binding to the network interface at `.0` failed with error `.1`.
+    /// Binding to the network interface at `.0` (if known) failed with `.1`.
     Bind(Option<Endpoint>, Box<dyn StdError + Send>),
     /// An I/O error occurred during launch.
     Io(io::Error),
     /// A valid [`Config`](crate::Config) could not be extracted from the
     /// configured figment.
     Config(figment::Error),
-    /// Route collisions were detected.
-    Collisions(crate::router::Collisions),
+    /// Route or catcher collisions were detected. At least one of `routes` or
+    /// `catchers` is guaranteed to be non-empty.
+    Collisions {
+        /// Pairs of colliding routes, if any.
+        routes: Vec<(Route, Route)>,
+        /// Pairs of colliding catchers, if any.
+        catchers: Vec<(Catcher, Catcher)>,
+    },
     /// Launch fairing(s) failed.
     FailedFairings(Vec<crate::fairing::Info>),
     /// Sentinels requested abort.
@@ -75,11 +95,48 @@ impl Error {
         Error { kind }
     }
 
-    // FIXME: Don't expose this. Expose finer access methods instead.
+    /// Returns the kind of error that occurred.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use rocket::*;
+    /// use rocket::trace::Trace;
+    /// use rocket::error::ErrorKind;
+    ///
+    /// # async fn run() -> Result<(), rocket::error::Error> {
+    /// if let Err(e) = rocket::build().ignite().await {
+    ///     match e.kind() {
+    ///         ErrorKind::Bind(_, e) => info!("binding failed: {}", e),
+    ///         ErrorKind::Io(e) => info!("I/O error: {}", e),
+    ///         _ => e.trace_error(),
+    ///    }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn kind(&self) -> &ErrorKind {
         &self.kind
     }
 
+    /// Given the return value of [`Rocket::launch()`] or [`Rocket::ignite()`],
+    /// which return a `Result<Rocket<P>, Error>`, logs the error, if any, and
+    /// returns the appropriate exit code.
+    ///
+    /// For `Ok(_)`, returns `ExitCode::SUCCESS`. For `Err(e)`, logs the error
+    /// and returns `ExitCode::FAILURE`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use rocket::*;
+    /// use std::process::ExitCode;
+    /// use rocket::error::Error;
+    ///
+    /// async fn run() -> ExitCode {
+    ///     Error::report(rocket::build().launch().await)
+    /// }
+    /// ```
     pub fn report<P: Phase>(result: Result<Rocket<P>, Error>) -> process::ExitCode {
         match result {
             Ok(_) => process::ExitCode::SUCCESS,
@@ -114,7 +171,7 @@ impl StdError for Error {
         match &self.kind {
             ErrorKind::Bind(_, e) => Some(&**e),
             ErrorKind::Io(e) => Some(e),
-            ErrorKind::Collisions(_) => None,
+            ErrorKind::Collisions { .. } => None,
             ErrorKind::FailedFairings(_) => None,
             ErrorKind::InsecureSecretKey(_) => None,
             ErrorKind::Config(e) => Some(e),
@@ -131,7 +188,7 @@ impl fmt::Display for ErrorKind {
         match self {
             ErrorKind::Bind(_, e) => write!(f, "binding failed: {e}"),
             ErrorKind::Io(e) => write!(f, "I/O error: {e}"),
-            ErrorKind::Collisions(_) => "collisions detected".fmt(f),
+            ErrorKind::Collisions { .. } => "collisions detected".fmt(f),
             ErrorKind::FailedFairings(_) => "launch fairing(s) failed".fmt(f),
             ErrorKind::InsecureSecretKey(_) => "insecure secret key config".fmt(f),
             ErrorKind::Config(_) => "failed to extract configuration".fmt(f),

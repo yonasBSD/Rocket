@@ -314,16 +314,12 @@ impl Trace for ErrorKind {
             }
             Io(reason) => event!(level, "error::io", %reason, "i/o error"),
             Config(error) => error.trace(level),
-            Collisions(collisions) => {
-                let routes = collisions.routes.len();
-                let catchers = collisions.catchers.len();
-
+            Collisions { routes, catchers }=> {
                 span!(level, "collision",
-                    route.pairs = routes,
-                    catcher.pairs = catchers,
+                    route.pairs = routes.len(),
+                    catcher.pairs = catchers.len(),
                     "colliding items detected"
                 ).in_scope(|| {
-                    let routes = &collisions.routes;
                     for (a, b) in routes {
                         span!(level, "colliding route pair").in_scope(|| {
                             a.trace(level);
@@ -331,7 +327,6 @@ impl Trace for ErrorKind {
                         })
                     }
 
-                    let catchers = &collisions.catchers;
                     for (a, b) in catchers {
                         span!(level, "colliding catcher pair").in_scope(|| {
                             a.trace(level);

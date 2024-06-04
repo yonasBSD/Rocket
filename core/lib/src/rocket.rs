@@ -556,7 +556,7 @@ impl Rocket<Build> {
         let mut router = Router::new();
         self.routes.clone().into_iter().for_each(|r| router.add_route(r));
         self.catchers.clone().into_iter().for_each(|c| router.add_catcher(c));
-        router.finalize().map_err(ErrorKind::Collisions)?;
+        router.finalize().map_err(|(r, c)| ErrorKind::Collisions { routes: r, catchers: c, })?;
 
         // Finally, freeze managed state for faster access later.
         self.state.freeze();

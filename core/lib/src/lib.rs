@@ -174,7 +174,7 @@ mod erased;
 #[doc(inline)] pub use crate::route::Route;
 #[doc(inline)] pub use crate::phase::{Phase, Build, Ignite, Orbit};
 #[doc(inline)] pub use crate::error::Error;
-#[doc(inline)] pub use crate::sentinel::Sentinel;
+#[doc(inline)] pub use crate::sentinel::{Sentinel, Sentry};
 #[doc(inline)] pub use crate::request::Request;
 #[doc(inline)] pub use crate::rkt::Rocket;
 #[doc(inline)] pub use crate::shutdown::Shutdown;
