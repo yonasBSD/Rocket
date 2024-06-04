@@ -37,20 +37,54 @@ these properties and more.
 
 ## Methods
 
-A Rocket route attribute can be any one of `get`, `put`, `post`, `delete`,
-`head`, `patch`, or `options`, each corresponding to the HTTP method to match
-against. For example, the following attribute will match against `POST` requests
-to the root path:
+A Rocket route attribute can either be method-specific, any one of `get`, `put`,
+`post`, `delete`, `head`, `patch`, or `options`, or the generic [`route`], which
+allows explicitly specifying any valid HTTP [`Method`] or no method at all, to
+match again _any_ method. Consider the following examples:
 
-```rust
-# #[macro_use] extern crate rocket;
-# fn main() {}
+  * Match a `POST` request to `/`:
 
-#[post("/")]
-# fn handler() {}
-```
+    ```rust
+    # use rocket::post;
+    #[post("/")]
+    # fn handler() {}
+    ```
+
+  * Match a `PATCH` request to `/fix`:
+
+    ```rust
+    # use rocket::patch;
+    #[patch("/fix")]
+    # fn handler() {}
+    ```
+
+  * Match a `PROPFIND` request to `/collection`:
+
+    ```rust
+    # use rocket::route;
+    #[route("/collection", method = PROPFIND)]
+    # fn handler() {}
+    ```
+
+  * Match a `VERSION-CONTROL` request to `/collection`:
+
+    ```rust
+    # use rocket::route;
+    #[route("/resource", method = "VERSION-CONTROL")]
+    # fn handler() {}
+    ```
+
+  * Match a request to `/page` with _any_ method:
+
+    ```rust
+    # use rocket::route;
+    #[route("/page")]
+    # fn handler() {}
+    ```
 
 The grammar for these attributes is defined formally in the [`route`] API docs.
+
+[`Method`]: @api/master/rocket/http/enum.Method.html
 
 ### HEAD Requests
 

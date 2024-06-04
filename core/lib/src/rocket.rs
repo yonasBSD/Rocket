@@ -557,9 +557,10 @@ impl Rocket<Build> {
 
         // Initialize the router; check for collisions.
         let mut router = Router::new();
-        self.routes.clone().into_iter().for_each(|r| router.add_route(r));
-        self.catchers.clone().into_iter().for_each(|c| router.add_catcher(c));
-        router.finalize().map_err(|(r, c)| ErrorKind::Collisions { routes: r, catchers: c, })?;
+        self.routes.clone().into_iter().for_each(|r| router.routes.push(r));
+        self.catchers.clone().into_iter().for_each(|c| router.catchers.push(c));
+        let router = router.finalize()
+            .map_err(|(r, c)| ErrorKind::Collisions { routes: r, catchers: c, })?;
 
         // Finally, freeze managed state for faster access later.
         self.state.freeze();
@@ -840,8 +841,8 @@ impl<P: Phase> Rocket<P> {
     pub fn routes(&self) -> impl Iterator<Item = &Route> {
         match self.0.as_ref() {
             StateRef::Build(p) => Either::Left(p.routes.iter()),
-            StateRef::Ignite(p) => Either::Right(p.router.routes()),
-            StateRef::Orbit(p) => Either::Right(p.router.routes()),
+            StateRef::Ignite(p) => Either::Right(p.router.routes.iter()),
+            StateRef::Orbit(p) => Either::Right(p.router.routes.iter()),
         }
     }
 
@@ -871,8 +872,8 @@ impl<P: Phase> Rocket<P> {
     pub fn catchers(&self) -> impl Iterator<Item = &Catcher> {
         match self.0.as_ref() {
             StateRef::Build(p) => Either::Left(p.catchers.iter()),
-            StateRef::Ignite(p) => Either::Right(p.router.catchers()),
-            StateRef::Orbit(p) => Either::Right(p.router.catchers()),
+            StateRef::Ignite(p) => Either::Right(p.router.catchers.iter()),
+            StateRef::Orbit(p) => Either::Right(p.router.catchers.iter()),
         }
     }
 

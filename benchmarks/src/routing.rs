@@ -58,9 +58,9 @@ fn generate_matching_requests<'c>(client: &'c Client, routes: &[Route]) -> Vec<L
             .join("&");
 
         let uri = format!("/{}?{}", path, query);
-        let mut req = client.req(route.method, uri);
+        let mut req = client.req(route.method.unwrap(), uri);
         if let Some(ref format) = route.format {
-            if let Some(true) = route.method.allows_request_body() {
+            if let Some(true) = route.method.and_then(|m| m.allows_request_body()) {
                 req.add_header(ContentType::from(format.clone()));
             } else {
                 req.add_header(Accept::from(format.clone()));

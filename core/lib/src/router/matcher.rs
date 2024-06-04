@@ -67,8 +67,7 @@ impl Route {
     /// ```
     #[tracing::instrument(level = "trace", name = "matching", skip_all, ret)]
     pub fn matches(&self, request: &Request<'_>) -> bool {
-        trace!(route.method = %self.method, request.method = %request.method());
-        self.method == request.method()
+        methods_match(self, request)
             && paths_match(self, request)
             && queries_match(self, request)
             && formats_match(self, request)
@@ -140,6 +139,11 @@ impl Catcher {
     }
 }
 
+fn methods_match(route: &Route, req: &Request<'_>) -> bool {
+    trace!(?route.method, request.method = %req.method());
+    route.method.map_or(true, |method| method == req.method())
+}
+
 fn paths_match(route: &Route, req: &Request<'_>) -> bool {
     trace!(route.uri = %route.uri, request.uri = %req.uri());
     let route_segments = &route.uri.metadata.uri_segments;
@@ -208,7 +212,7 @@ fn formats_match(route: &Route, req: &Request<'_>) -> bool {
         None => return true,
     };
 
-    match route.method.allows_request_body() {
+    match route.method.and_then(|m| m.allows_request_body()) {
         Some(true) => match req.format() {
             Some(f) if f.specificity() == 2 => route_format.collides_with(f),
             _ => false

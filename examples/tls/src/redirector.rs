@@ -2,9 +2,9 @@
 
 use std::net::SocketAddr;
 
-use rocket::http::Status;
+use rocket::http::uri::{Origin, Host};
 use rocket::tracing::{self, Instrument};
-use rocket::{route, Error, Request, Data, Route, Orbit, Rocket, Ignite};
+use rocket::{Rocket, Ignite, Orbit, State, Error};
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::response::Redirect;
 use rocket::listener::tcp::TcpListener;
@@ -19,43 +19,33 @@ pub struct Config {
     tls_addr: SocketAddr,
 }
 
+#[route("/<_..>")]
+fn redirect(config: &State<Config>, uri: &Origin<'_>, host: &Host<'_>) -> Redirect {
+    // FIXME: Check the host against a whitelist!
+    let domain = host.domain();
+    let https_uri = match config.tls_addr.port() {
+        443 => format!("https://{domain}{uri}"),
+        port => format!("https://{domain}:{port}{uri}"),
+    };
+
+    Redirect::permanent(https_uri)
+}
+
 impl Redirector {
     pub fn on(port: u16) -> Self {
         Redirector(port)
     }
 
-    // Route function that gets called on every single request.
-    fn redirect<'r>(req: &'r Request, _: Data<'r>) -> route::BoxFuture<'r> {
-        // FIXME: Check the host against a whitelist!
-        let config = req.rocket().state::<Config>().expect("managed Self");
-        if let Some(host) = req.host() {
-            let domain = host.domain();
-            let https_uri = match config.tls_addr.port() {
-                443 => format!("https://{domain}{}", req.uri()),
-                port => format!("https://{domain}:{port}{}", req.uri()),
-            };
-
-            route::Outcome::from(req, Redirect::permanent(https_uri)).pin()
-        } else {
-            route::Outcome::from(req, Status::BadRequest).pin()
-        }
-    }
-
     // Launch an instance of Rocket than handles redirection on `self.port`.
     pub async fn try_launch(self, config: Config) -> Result<Rocket<Ignite>, Error> {
-        use rocket::http::Method::*;
+        rocket::span_info!("HTTP -> HTTPS Redirector" => {
+            info!(from =  self.0, to = config.tls_addr.port(),  "redirecting");
+        });
 
-        // Build a vector of routes to `redirect` on `<path..>` for each method.
-        let redirects = [Get, Put, Post, Delete, Options, Head, Trace, Connect, Patch]
-            .into_iter()
-            .map(|m| Route::new(m, "/<path..>", Self::redirect))
-            .collect::<Vec<_>>();
-
-        info!(from =  self.0, to = config.tls_addr.port(),  "redirecting");
         let addr = SocketAddr::new(config.tls_addr.ip(), self.0);
         rocket::custom(&config.server)
             .manage(config)
-            .mount("/", redirects)
+            .mount("/", routes![redirect])
             .try_launch_on(TcpListener::bind(addr))
             .await
     }

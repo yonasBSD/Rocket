@@ -16,7 +16,7 @@ struct ArbitraryRequestData<'a> {
 
 #[derive(Arbitrary)]
 struct ArbitraryRouteData<'a> {
-    method: ArbitraryMethod,
+    method: Option<ArbitraryMethod>,
     uri: ArbitraryRouteUri<'a>,
     format: Option<ArbitraryMediaType>,
 }
@@ -24,7 +24,7 @@ struct ArbitraryRouteData<'a> {
 impl std::fmt::Debug for ArbitraryRouteData<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ArbitraryRouteData")
-            .field("method", &self.method.0)
+            .field("method", &self.method.map(|v| v.0))
             .field("base", &self.uri.0.base())
             .field("unmounted", &self.uri.0.unmounted().to_string())
             .field("uri", &self.uri.0.to_string())
@@ -59,12 +59,14 @@ impl<'c, 'a: 'c> ArbitraryRequestData<'a> {
 
 impl<'a> ArbitraryRouteData<'a> {
     fn into_route(self) -> Route {
-        let mut r = Route::ranked(0, self.method.0, &self.uri.0.to_string(), dummy_handler);
+        let method = self.method.map(|m| m.0);
+        let mut r = Route::ranked(0, method, &self.uri.0.to_string(), dummy_handler);
         r.format = self.format.map(|f| f.0);
         r
     }
 }
 
+#[derive(Clone, Copy)]
 struct ArbitraryMethod(Method);
 
 struct ArbitraryOrigin<'a>(Origin<'a>);
@@ -79,12 +81,7 @@ struct ArbitraryRouteUri<'a>(RouteUri<'a>);
 
 impl<'a> Arbitrary<'a> for ArbitraryMethod {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let all_methods = &[
-            Method::Get, Method::Put, Method::Post, Method::Delete, Method::Options,
-            Method::Head, Method::Trace, Method::Connect, Method::Patch
-        ];
-
-        Ok(ArbitraryMethod(*u.choose(all_methods)?))
+        Ok(ArbitraryMethod(*u.choose(Method::ALL_VARIANTS)?))
     }
 
     fn size_hint(_: usize) -> (usize, Option<usize>) {

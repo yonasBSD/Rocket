@@ -1,7 +1,7 @@
 use crate::catcher::Catcher;
 use crate::route::{Route, Segment, RouteUri};
 
-use crate::http::MediaType;
+use crate::http::{MediaType, Method};
 
 pub trait Collide<T = Self> {
     fn collides_with(&self, other: &T) -> bool;
@@ -87,7 +87,7 @@ impl Route {
     /// assert!(a.collides_with(&b));
     /// ```
     pub fn collides_with(&self, other: &Route) -> bool {
-        self.method == other.method
+        methods_collide(self, other)
             && self.rank == other.rank
             && self.uri.collides_with(&other.uri)
             && formats_collide(self, other)
@@ -190,8 +190,16 @@ impl Collide for MediaType {
     }
 }
 
+fn methods_collide(route: &Route, other: &Route) -> bool {
+    match (route.method, other.method) {
+        (Some(a), Some(b)) => a == b,
+        (None, _) | (_, None) => true,
+    }
+}
+
 fn formats_collide(route: &Route, other: &Route) -> bool {
-    match (route.method.allows_request_body(), other.method.allows_request_body()) {
+    let payload_support = |m: &Option<Method>| m.and_then(|m| m.allows_request_body());
+    match (payload_support(&route.method), payload_support(&other.method)) {
         // Payload supporting methods match against `Content-Type` which must be
         // fully specified, so the request cannot contain a format that matches
         // more than one route format as long as those formats don't collide.

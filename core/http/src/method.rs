@@ -124,6 +124,10 @@ macro_rules! define_methods {
             #[doc(hidden)]
             pub const ALL: &'static [&'static str] = &[$($name),*];
 
+            /// A slice containing every defined method variant.
+            #[doc(hidden)]
+            pub const ALL_VARIANTS: &'static [Method] = &[$(Self::$V),*];
+
             /// Whether the method is considered "safe".
             ///
             /// From [RFC9110 §9.2.1](https://www.rfc-editor.org/rfc/rfc9110#section-9.2.1):

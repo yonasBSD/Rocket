@@ -4,7 +4,7 @@ use figment::Figment;
 use crate::listener::Endpoint;
 use crate::shutdown::Stages;
 use crate::{Catcher, Config, Rocket, Route};
-use crate::router::Router;
+use crate::router::{Router, Finalized};
 use crate::fairing::Fairings;
 
 mod private {
@@ -100,7 +100,7 @@ phases! {
     /// represents a fully built and finalized application server ready for
     /// launch into orbit. See [`Rocket#ignite`] for full details.
     Ignite (#[derive(Debug)] Igniting) {
-        pub(crate) router: Router,
+        pub(crate) router: Router<Finalized>,
         pub(crate) fairings: Fairings,
         pub(crate) figment: Figment,
         pub(crate) config: Config,
@@ -114,7 +114,7 @@ phases! {
     /// An instance of `Rocket` in this phase is typed as [`Rocket<Orbit>`] and
     /// represents a running application.
     Orbit (#[derive(Debug)] Orbiting) {
-        pub(crate) router: Router,
+        pub(crate) router: Router<Finalized>,
         pub(crate) fairings: Fairings,
         pub(crate) figment: Figment,
         pub(crate) config: Config,

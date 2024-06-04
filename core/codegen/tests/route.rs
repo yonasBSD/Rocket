@@ -54,8 +54,8 @@ fn post1(
 }
 
 #[route(
-    POST,
-    uri = "/<a>/<name>/name/<path..>?sky=blue&<sky>&<query..>",
+    "/<a>/<name>/name/<path..>?sky=blue&<sky>&<query..>",
+    method = POST,
     format = "json",
     data = "<simple>",
     rank = 138

@@ -119,15 +119,20 @@ macro_rules! route_attribute {
         ///   * [`patch`] - `PATCH` specific route
         ///
         /// Additionally, [`route`] allows the method and uri to be explicitly
-        /// specified:
+        /// specified, and for the method to be omitted entirely, to match any
+        /// method:
         ///
         /// ```rust
         /// # #[macro_use] extern crate rocket;
-        /// #
-        /// #[route(GET, uri = "/")]
-        /// fn index() -> &'static str {
-        ///     "Hello, world!"
-        /// }
+        ///
+        /// #[route("/", method = GET)]
+        /// fn get_index() { /* ... */ }
+        ///
+        /// #[route("/", method = "VERSION-CONTROL")]
+        /// fn versioned_index() { /* ... */ }
+        ///
+        /// #[route("/")]
+        /// fn index() { /* ... */ }
         /// ```
         ///
         /// [`get`]: attr.get.html
@@ -171,7 +176,9 @@ macro_rules! route_attribute {
         /// The generic route attribute is defined as:
         ///
         /// ```text
-        /// generic-route := METHOD ',' 'uri' '=' route
+        /// generic-route := route (',' method)?
+        ///
+        /// method := 'method' '=' METHOD
         /// ```
         ///
         /// # Typing Requirements
@@ -1161,12 +1168,12 @@ pub fn derive_uri_display_path(input: TokenStream) -> TokenStream {
 /// assert_eq!(my_routes.len(), 2);
 ///
 /// let index_route = &my_routes[0];
-/// assert_eq!(index_route.method, Method::Get);
+/// assert_eq!(index_route.method, Some(Method::Get));
 /// assert_eq!(index_route.name.as_ref().unwrap(), "index");
 /// assert_eq!(index_route.uri.path(), "/");
 ///
 /// let hello_route = &my_routes[1];
-/// assert_eq!(hello_route.method, Method::Post);
+/// assert_eq!(hello_route.method, Some(Method::Post));
 /// assert_eq!(hello_route.name.as_ref().unwrap(), "hello");
 /// assert_eq!(hello_route.uri.path(), "/hi/<person>");
 /// ```

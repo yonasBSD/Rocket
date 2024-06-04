@@ -22,7 +22,7 @@ use crate::sentinel::Sentry;
 ///
 /// let route = routes![route_name].remove(0);
 /// assert_eq!(route.name.unwrap(), "route_name");
-/// assert_eq!(route.method, Method::Get);
+/// assert_eq!(route.method, Some(Method::Get));
 /// assert_eq!(route.uri, "/route/<path..>?query");
 /// assert_eq!(route.rank, 2);
 /// assert_eq!(route.format.unwrap(), MediaType::JSON);
@@ -164,8 +164,8 @@ use crate::sentinel::Sentry;
 pub struct Route {
     /// The name of this route, if one was given.
     pub name: Option<Cow<'static, str>>,
-    /// The method this route matches against.
-    pub method: Method,
+    /// The method this route matches, or `None` to match any method.
+    pub method: Option<Method>,
     /// The function that should be called when the route matches.
     pub handler: Box<dyn Handler>,
     /// The route URI.
@@ -203,12 +203,12 @@ impl Route {
     /// // this is a route matching requests to `GET /`
     /// let index = Route::new(Method::Get, "/", handler);
     /// assert_eq!(index.rank, -9);
-    /// assert_eq!(index.method, Method::Get);
+    /// assert_eq!(index.method, Some(Method::Get));
     /// assert_eq!(index.uri, "/");
     /// ```
     #[track_caller]
-    pub fn new<H: Handler>(method: Method, uri: &str, handler: H) -> Route {
-        Route::ranked(None, method, uri, handler)
+    pub fn new<M: Into<Option<Method>>, H: Handler>(method: M, uri: &str, handler: H) -> Route {
+        Route::ranked(None, method.into(), uri, handler)
     }
 
     /// Creates a new route with the given rank, method, path, and handler with
@@ -233,17 +233,19 @@ impl Route {
     ///
     /// let foo = Route::ranked(1, Method::Post, "/foo?bar", handler);
     /// assert_eq!(foo.rank, 1);
-    /// assert_eq!(foo.method, Method::Post);
+    /// assert_eq!(foo.method, Some(Method::Post));
     /// assert_eq!(foo.uri, "/foo?bar");
     ///
     /// let foo = Route::ranked(None, Method::Post, "/foo?bar", handler);
     /// assert_eq!(foo.rank, -12);
-    /// assert_eq!(foo.method, Method::Post);
+    /// assert_eq!(foo.method, Some(Method::Post));
     /// assert_eq!(foo.uri, "/foo?bar");
     /// ```
     #[track_caller]
-    pub fn ranked<H, R>(rank: R, method: Method, uri: &str, handler: H) -> Route
-        where H: Handler + 'static, R: Into<Option<isize>>,
+    pub fn ranked<M, H, R>(rank: R, method: M, uri: &str, handler: H) -> Route
+        where M: Into<Option<Method>>,
+              H: Handler + 'static,
+              R: Into<Option<isize>>,
     {
         let uri = RouteUri::new("/", uri);
         let rank = rank.into().unwrap_or_else(|| uri.default_rank());
@@ -253,7 +255,9 @@ impl Route {
             sentinels: Vec::new(),
             handler: Box::new(handler),
             location: None,
-            rank, uri, method,
+            method: method.into(),
+            rank,
+            uri,
         }
     }
 
@@ -362,7 +366,7 @@ pub struct StaticInfo {
     /// The route's name, i.e, the name of the function.
     pub name: &'static str,
     /// The route's method.
-    pub method: Method,
+    pub method: Option<Method>,
     /// The route's URi, without the base mount point.
     pub uri: &'static str,
     /// The route's format, if any.

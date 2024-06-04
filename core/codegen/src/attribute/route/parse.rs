@@ -43,8 +43,8 @@ pub struct Arguments {
 #[derive(Debug, FromMeta)]
 pub struct Attribute {
     #[meta(naked)]
-    pub method: SpanWrapped<Method>,
     pub uri: RouteUri,
+    pub method: Option<SpanWrapped<Method>>,
     pub data: Option<SpanWrapped<Dynamic>>,
     pub format: Option<MediaType>,
     pub rank: Option<isize>,
@@ -129,17 +129,23 @@ impl Route {
         // Emit a warning if a `data` param was supplied for non-payload methods.
         if let Some(ref data) = attr.data {
             let lint = Lint::DubiousPayload;
-            match attr.method.0.allows_request_body() {
-                None if lint.enabled(handler.span()) => {
-                    data.full_span.warning("`data` used with non-payload-supporting method")
-                        .note(format!("'{}' does not typically support payloads", attr.method.0))
-                        .note(lint.how_to_suppress())
-                        .emit_as_item_tokens();
-                }
-                Some(false) => {
+            match attr.method.as_ref() {
+                Some(m) if m.0.allows_request_body() == Some(false) => {
                     diags.push(data.full_span
                         .error("`data` cannot be used on this route")
-                        .span_note(attr.method.span, "method does not support request payloads"))
+                        .span_note(m.span, "method does not support request payloads"))
+                },
+                Some(m) if m.0.allows_request_body().is_none() && lint.enabled(handler.span()) => {
+                    data.full_span.warning("`data` used with non-payload-supporting method")
+                        .span_note(m.span, format!("'{}' does not typically support payloads", m.0))
+                        .note(lint.how_to_suppress())
+                        .emit_as_item_tokens();
+                },
+                None if lint.enabled(handler.span()) => {
+                    data.full_span.warning("`data` used on route with wildcard method")
+                        .note("some methods may not support request payloads")
+                        .note(lint.how_to_suppress())
+                        .emit_as_item_tokens();
                 }
                 _ => { /* okay */ },
             }

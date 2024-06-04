@@ -142,7 +142,10 @@ impl Trace for Route {
         event! { level, "route",
             name = self.name.as_ref().map(|n| &**n),
             rank = self.rank,
-            method = %self.method,
+            method = %Formatter(|f| match self.method {
+                Some(method) => write!(f, "{}", method),
+                None => write!(f, "[any]"),
+            }),
             uri = %self.uri,
             uri.base = %self.uri.base(),
             uri.unmounted = %self.uri.unmounted(),

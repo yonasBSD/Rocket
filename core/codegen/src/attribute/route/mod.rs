@@ -263,7 +263,7 @@ fn internal_uri_macro_decl(route: &Route) -> TokenStream {
     // Generate a unique macro name based on the route's metadata.
     let macro_name = route.handler.sig.ident.prepend(crate::URI_MACRO_PREFIX);
     let inner_macro_name = macro_name.uniqueify_with(|mut hasher| {
-        route.attr.method.0.hash(&mut hasher);
+        route.attr.method.as_ref().map(|m| m.0.hash(&mut hasher));
         route.attr.uri.path().hash(&mut hasher);
         route.attr.uri.query().hash(&mut hasher);
         route.attr.data.as_ref().map(|d| d.value.hash(&mut hasher));
@@ -395,7 +395,7 @@ fn codegen_route(route: Route) -> Result<TokenStream> {
     let internal_uri_macro = internal_uri_macro_decl(&route);
     let responder_outcome = responder_outcome_expr(&route);
 
-    let method = &route.attr.method;
+    let method = Optional(route.attr.method.clone());
     let uri = route.attr.uri.to_string();
     let rank = Optional(route.attr.rank);
     let format = Optional(route.attr.format.as_ref());
@@ -480,9 +480,12 @@ fn incomplete_route(
     let method_attribute = MethodAttribute::from_meta(&syn::parse2(full_attr)?)?;
 
     let attribute = Attribute {
-        method: SpanWrapped {
-            full_span: method_span, key_span: None, span: method_span, value: Method(method)
-        },
+        method: Some(SpanWrapped {
+            full_span: method_span,
+            key_span: None,
+            span: method_span,
+            value: Method(method),
+        }),
         uri: method_attribute.uri,
         data: method_attribute.data,
         format: method_attribute.format,

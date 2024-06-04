@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use rocket::http::Method;
 
-#[route(PROPFIND, uri = "/")]
+#[route("/", method = PROPFIND)]
 fn route() -> &'static str {
     "Hello, World!"
 }

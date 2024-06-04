@@ -33,7 +33,7 @@ fn mir() -> &'static str {
 
 // Try visiting:
 //   http://127.0.0.1:8000/wave/Rocketeer/100
-#[get("/<name>/<age>")]
+#[get("/<name>/<age>", rank = 2)]
 fn wave(name: &str, age: u8) -> String {
     format!("👋 Hello, {} year old named {}!", age, name)
 }

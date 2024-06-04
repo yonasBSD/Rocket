@@ -13,13 +13,13 @@ fn patch(form_data: Form<FormData>) -> &'static str {
     "PATCH OK"
 }
 
-#[route(UPDATEREDIRECTREF, uri = "/", data = "<form_data>")]
+#[route("/", method = UPDATEREDIRECTREF, data = "<form_data>")]
 fn urr(form_data: Form<FormData>) -> &'static str {
     assert_eq!("Form data", form_data.into_inner().form_data);
     "UPDATEREDIRECTREF OK"
 }
 
-#[route("VERSION-CONTROL", uri = "/", data = "<form_data>")]
+#[route("/", method = "VERSION-CONTROL", data = "<form_data>")]
 fn vc(form_data: Form<FormData>) -> &'static str {
     assert_eq!("Form data", form_data.into_inner().form_data);
     "VERSION-CONTROL OK"
