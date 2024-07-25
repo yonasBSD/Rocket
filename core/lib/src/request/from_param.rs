@@ -1,5 +1,9 @@
+use std::borrow::Cow;
+use std::fmt;
 use std::str::FromStr;
 use std::path::PathBuf;
+
+use cookie::Display;
 
 use crate::error::Empty;
 use crate::either::Either;
@@ -305,6 +309,31 @@ impl<'a, T: FromParam<'a>> FromParam<'a> for Option<T> {
         }
     }
 }
+
+/// Error type for automatically derived `FromParam` enums
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct EnumFromParamError<'a> {
+    pub value: Cow<'a, str>,
+    pub options: Cow<'static, [Cow<'static, str>]>,
+}
+
+impl<'a> EnumFromParamError<'a> {
+    pub fn new(value: Cow<'a, str>, options: Cow<'static, [Cow<'static, str>]>) -> Self {
+        Self {
+            value,
+            options,
+        }
+    }
+}
+
+impl fmt::Display for EnumFromParamError<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Unexpected value {:?}, expected one of {:?}", self.value, self.options)
+    }
+}
+
+impl std::error::Error for EnumFromParamError<'_> {}
 
 /// Trait to convert _many_ dynamic path segment strings to a concrete value.
 ///
