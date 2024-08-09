@@ -66,8 +66,8 @@ jobs:
       - name: Install Native Dependencies (macOS)
         if: matrix.platform.name == 'macOS'
         run: |
-            brew install mysql-client libpq sqlite coreutils
-            brew link --force --overwrite mysql-client
+            brew install mysql-client@8.4 libpq sqlite coreutils
+            brew link --force --overwrite mysql-client@8.4
             brew link --force --overwrite libpq
             echo "/usr/local/opt/mysql-client/bin" >> "$GITHUB_PATH"
 
