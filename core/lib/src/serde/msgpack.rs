@@ -171,7 +171,7 @@ impl<T, const COMPACT: bool> MsgPack<T, COMPACT> {
     }
 }
 
-impl<'r, T: Deserialize<'r>, const COMPACT: bool> MsgPack<T, COMPACT> {
+impl<'r, T: Deserialize<'r>> MsgPack<T> {
     fn from_bytes(buf: &'r [u8]) -> Result<Self, Error> {
         rmp_serde::from_slice(buf).map(MsgPack)
     }
@@ -192,7 +192,7 @@ impl<'r, T: Deserialize<'r>, const COMPACT: bool> MsgPack<T, COMPACT> {
 }
 
 #[crate::async_trait]
-impl<'r, T: Deserialize<'r>, const COMPACT: bool> FromData<'r> for MsgPack<T, COMPACT> {
+impl<'r, T: Deserialize<'r>> FromData<'r> for MsgPack<T> {
     type Error = Error;
 
     async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> Outcome<'r, Self> {
@@ -233,9 +233,7 @@ impl<'r, T: Serialize, const COMPACT: bool> Responder<'r, 'static> for MsgPack<T
 }
 
 #[crate::async_trait]
-impl<'v, T, const COMPACT: bool> form::FromFormField<'v> for MsgPack<T, COMPACT>
-    where T: Deserialize<'v> + Send
-{
+impl<'v, T: Deserialize<'v> + Send> form::FromFormField<'v> for MsgPack<T> {
     // TODO: To implement `from_value`, we need to the raw string so we can
     // decode it into bytes as opposed to a string as it won't be UTF-8.
 
