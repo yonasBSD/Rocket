@@ -321,7 +321,8 @@ pub fn from_slice<'a, T>(v: &'a [u8]) -> Result<T, Error>
 ///
 /// The compact representation represents structs as arrays.
 ///
-/// **_Always_ use [`Compact`] to serialize compact MessagePack response data.**
+/// **_Always_ use [`Compact`] to serialize MessagePack response data in a
+/// compact format.**
 ///
 /// # Example
 ///
