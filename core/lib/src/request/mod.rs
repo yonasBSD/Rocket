@@ -13,9 +13,6 @@ pub use self::from_request::{FromRequest, Outcome};
 pub use self::from_param::{FromParam, FromSegments};
 
 #[doc(hidden)]
-pub use self::from_param::EnumFromParamError;
-
-#[doc(hidden)]
 pub use rocket_codegen::FromParam;
 
 #[doc(inline)]

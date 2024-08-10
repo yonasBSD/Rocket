@@ -776,32 +776,41 @@ pub fn derive_from_form(input: TokenStream) -> TokenStream {
 
 /// Derive for the [`FromParam`] trait.
 ///
-/// The [`FromParam`] derive can be applied to enums with nullary
-/// (zero-length) fields. To implement FromParam, the function matches each variant
-/// to its stringified field name (case sensitive):
+/// This [`FromParam`] derive can be applied to C-like enums whose variants have
+/// no fields. The generated implementation case-sensitively matches each
+/// variant to its stringified field name. If there is no match, an error
+/// of type [`InvalidOption`] is returned.
+///
+/// [`FromParam`]: ../rocket/request/trait.FromParam.html
+/// [`InvalidOption`]: ../rocket/error/struct.InvalidOption.html
+///
+/// # Example
 ///
 /// ```rust
 /// # #[macro_use] extern crate rocket;
-/// #
 /// use rocket::request::FromParam;
 ///
 /// #[derive(FromParam, Debug, PartialEq)]
 /// enum MyParam {
 ///     A,
-///     B,
+///     Bob,
 /// }
 ///
 /// assert_eq!(MyParam::from_param("A").unwrap(), MyParam::A);
-/// assert_eq!(MyParam::from_param("B").unwrap(), MyParam::B);
+/// assert_eq!(MyParam::from_param("Bob").unwrap(), MyParam::Bob);
 /// assert!(MyParam::from_param("a").is_err());
-/// assert!(MyParam::from_param("b").is_err());
+/// assert!(MyParam::from_param("bob").is_err());
 /// assert!(MyParam::from_param("c").is_err());
 /// assert!(MyParam::from_param("C").is_err());
-/// ```
 ///
-/// Now `MyParam` can be used in an endpoint and will accept either `A` or `B`.
-/// [`FromParam`]: ../rocket/request/trait.FromParam.html
-///
+/// // Now `MyParam` can be used in an route to accept either `A` or `B`.
+/// #[get("/<param>")]
+/// fn index(param: MyParam) -> &'static str {
+///     match param {
+///         MyParam::A => "A",
+///         MyParam::Bob => "Bob",
+///     }
+/// }
 #[proc_macro_derive(FromParam)]
 pub fn derive_from_param(input: TokenStream) -> TokenStream {
     emit!(derive::from_param::derive_from_param(input))
