@@ -317,7 +317,7 @@
 //! | Postgres | [Diesel]              | `2`       | [`diesel::PgConnection`]       | `diesel_postgres_pool` |
 //! | MySQL    | [Diesel]              | `2`       | [`diesel::MysqlConnection`]    | `diesel_mysql_pool`    |
 //! | Postgres | [Rust-Postgres]       | `0.19`    | [`postgres::Client`]           | `postgres_pool`        |
-//! | Sqlite   | [`Rusqlite`]          | `0.27`    | [`rusqlite::Connection`]       | `sqlite_pool`          |
+//! | Sqlite   | [`Rusqlite`]          | `0.31`    | [`rusqlite::Connection`]       | `sqlite_pool`          |
 //! | Memcache | [`memcache`]          | `0.15`    | [`memcache::Client`]           | `memcache_pool`        |
 //!
 //! [Diesel]: https://diesel.rs
