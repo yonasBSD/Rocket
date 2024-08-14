@@ -130,7 +130,7 @@ impl Poolable for diesel::SqliteConnection {
             fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), Error> {
                 conn.batch_execute("\
                     PRAGMA journal_mode = WAL;\
-                    PRAGMA busy_timeout = 1000;\
+                    PRAGMA busy_timeout = 5000;\
                     PRAGMA foreign_keys = ON;\
                 ").map_err(Error::QueryError)?;
 
