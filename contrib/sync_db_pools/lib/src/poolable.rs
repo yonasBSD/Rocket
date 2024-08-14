@@ -13,11 +13,12 @@ use crate::{Config, Error};
 ///
 /// Implementations of `Poolable` are provided for the following types:
 ///
-///   * `diesel::MysqlConnection`
-///   * `diesel::PgConnection`
-///   * `diesel::SqliteConnection`
-///   * `postgres::Connection`
-///   * `rusqlite::Connection`
+///   * [`diesel::MysqlConnection`](diesel::MysqlConnection)
+///   * [`diesel::PgConnection`](diesel::PgConnection)
+///   * [`diesel::SqliteConnection`](diesel::SqliteConnection)
+///   * [`postgres::Client`](postgres::Client)
+///   * [`rusqlite::Connection`](rusqlite::Connection)
+///   * [`memcache::Client`](memcache::Client)
 ///
 /// # Implementation Guide
 ///
@@ -263,19 +264,52 @@ impl Poolable for rusqlite::Connection {
 }
 
 #[cfg(feature = "memcache_pool")]
-impl Poolable for memcache::Client {
-    type Manager = r2d2_memcache::MemcacheConnectionManager;
-    // Unused, but we might want it in the future without a breaking change.
-    type Error = memcache::MemcacheError;
+mod memcache_pool {
+    use memcache::{Client, Connectable, MemcacheError};
 
-    fn pool(db_name: &str, rocket: &Rocket<Build>) -> PoolResult<Self> {
-        let config = Config::from(db_name, rocket)?;
-        let manager = r2d2_memcache::MemcacheConnectionManager::new(&*config.url);
-        let pool = r2d2::Pool::builder()
-            .max_size(config.pool_size)
-            .connection_timeout(Duration::from_secs(config.timeout as u64))
-            .build(manager)?;
+    use super::*;
 
-        Ok(pool)
+    #[derive(Debug)]
+    pub struct ConnectionManager {
+        urls: Vec<String>,
+    }
+
+    impl ConnectionManager {
+        pub fn new<C: Connectable>(target: C) -> Self {
+            Self { urls: target.get_urls(), }
+        }
+    }
+
+    impl r2d2::ManageConnection for ConnectionManager {
+        type Connection = Client;
+        type Error = MemcacheError;
+
+        fn connect(&self) -> Result<Client, MemcacheError> {
+            Client::connect(self.urls.clone())
+        }
+
+        fn is_valid(&self, connection: &mut Client) -> Result<(), MemcacheError> {
+            connection.version().map(|_| ())
+        }
+
+        fn has_broken(&self, _connection: &mut Client) -> bool {
+            false
+        }
+    }
+
+    impl super::Poolable for memcache::Client {
+        type Manager = ConnectionManager;
+        type Error = MemcacheError;
+
+        fn pool(db_name: &str, rocket: &Rocket<Build>) -> PoolResult<Self> {
+            let config = Config::from(db_name, rocket)?;
+            let manager = ConnectionManager::new(&*config.url);
+            let pool = r2d2::Pool::builder()
+                .max_size(config.pool_size)
+                .connection_timeout(Duration::from_secs(config.timeout as u64))
+                .build(manager)?;
+
+            Ok(pool)
+        }
     }
 }
