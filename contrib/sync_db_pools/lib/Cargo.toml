@@ -48,5 +48,11 @@ default-features = false
 [build-dependencies]
 version_check = "0.9.1"
 
+[dev-dependencies.rocket]
+version = "0.6.0-dev"
+path = "../../../core/lib"
+default-features = false
+features = ["trace"]
+
 [package.metadata.docs.rs]
 all-features = true
