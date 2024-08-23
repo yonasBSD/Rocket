@@ -107,6 +107,14 @@ impl<'r> Body<'r> {
     /// The present value is `4096`.
     pub const DEFAULT_MAX_CHUNK: usize = 4096;
 
+    pub(crate) fn unsized_none() -> Self {
+        Body {
+            size: None,
+            inner: Inner::None,
+            max_chunk: Body::DEFAULT_MAX_CHUNK,
+        }
+    }
+
     pub(crate) fn with_sized<T>(body: T, preset_size: Option<usize>) -> Self
         where T: AsyncReadSeek + Send + 'r
     {

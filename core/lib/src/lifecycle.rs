@@ -134,12 +134,17 @@ impl Rocket<Orbit> {
         // Run the response fairings.
         self.fairings.handle_response(request, &mut response).await;
 
-        // Strip the body if this is a `HEAD` request.
-        if was_head_request {
+        // Strip the body if this is a `HEAD` request or a 304 response.
+        if was_head_request || response.status() == Status::NotModified {
             response.strip_body();
         }
 
-        if let Some(size) = response.body_mut().size().await {
+        // If the response status is 204, strip the body and its size (no
+        // content-length header). Otherwise, check if the body is sized and use
+        // that size to set the content-length headr appropriately.
+        if response.status() == Status::NoContent {
+            *response.body_mut() = crate::response::Body::unsized_none();
+        } else if let Some(size) = response.body_mut().size().await {
             response.set_raw_header("Content-Length", size.to_string());
         }
 
